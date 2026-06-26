@@ -1169,7 +1169,7 @@
     } catch(e) { toast("Error: " + e.message, "error"); }
   }
 
-  // ── Reassign modal ────────────────────────────────────────────
+  // ── Reassign modal ──────────────────────────────────────────
   function openReassignModal(code) {
     reassignCtx = { code };
     const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
