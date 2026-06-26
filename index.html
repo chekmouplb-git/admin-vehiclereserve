@@ -664,28 +664,18 @@
   </div>
 </div>
 
-<!-- APPROVAL MODAL -->
-<div class="reason-modal" id="approvalModal">
-  <div class="reason-box" style="max-width:520px;">
-    <h3 style="color:var(--green);"><i class="fas fa-check-circle"></i> Approve Reservation</h3>
-    <div id="approvalSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin:12px 0;font-size:13px;"></div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Assign Vehicle</label>
-      <select id="approvalVehicle" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading vehicles…</option>
-      </select>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">Default vehicle assignment.</div>
-    </div>
-    <div style="margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Assign Driver</label>
-      <select id="approvalDriver" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading drivers…</option>
-      </select>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">Default driver assignment.</div>
+
+<!-- APPROVE CONFIRM MODAL -->
+<div class="reason-modal" id="approveConfirmModal">
+  <div class="reason-box" style="max-width:460px;">
+    <h3 style="color:var(--green);margin-bottom:12px;"><i class="fas fa-check-circle"></i> Approve Reservation</h3>
+    <div id="approveConfirmSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:13px;line-height:1.6;"></div>
+    <div style="background:var(--green-light);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--green);border-left:3px solid var(--green);">
+      <i class="fas fa-info-circle"></i> Default vehicle and driver will be assigned. Use <strong>Reassign</strong> to change.
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-ghost" id="cancelApproval">Cancel</button>
-      <button class="btn btn-green" id="confirmApproval">
+      <button class="btn btn-ghost" id="cancelApproveConfirm">Cancel</button>
+      <button class="btn btn-green" id="submitApproveConfirm">
         <i class="fas fa-check"></i> Confirm Approval
       </button>
     </div>
@@ -730,7 +720,6 @@
   let drivers        = []; // string[]
   let activeSource   = "all";
   let pendingAction  = null; // { code, rowIndex, type, actionType }
-  let approvalCtx    = null; // { code } — reservation pending approval
   let reassignCtx    = null; // { code } — reservation being reassigned
 
   // ── Boot ─────────────────────────────────────────────────────
@@ -753,7 +742,6 @@
       vehicles     = vd.vehicles || [];
       drivers      = vd.drivers  || [];
       populateDestList();
-      populateApprovalDropdowns();
       populateReassignDropdowns();
       updateBadges();
       renderCalendar();
@@ -771,22 +759,7 @@
     dl.innerHTML = destinations.map(d => `<option value="${d}">`).join("");
   }
 
-  // ── Approval & Reassign dropdowns ────────────────────────────
-  function populateApprovalDropdowns() {
-    const vSel = document.getElementById("approvalVehicle");
-    const dSel = document.getElementById("approvalDriver");
-    if (vehicles.length) {
-      vSel.innerHTML = vehicles.map((v, i) =>
-        `<option value="${v.name}||${v.plate}"${i === 0 ? " selected" : ""}>${v.name}${v.plate ? ` — ${v.plate}` : ""}${i === 0 ? " (default)" : ""}</option>`
-      ).join("");
-    } else { vSel.innerHTML = `<option value="">No vehicles found</option>`; }
-    if (drivers.length) {
-      dSel.innerHTML = drivers.map((d, i) =>
-        `<option value="${d}"${i === 0 ? " selected" : ""}>${d}${i === 0 ? " (default)" : ""}</option>`
-      ).join("");
-    } else { dSel.innerHTML = `<option value="">No drivers found</option>`; }
-  }
-
+  // ── Reassign dropdowns ────────────────────────────────────────
   function populateReassignDropdowns() {
     const vSel = document.getElementById("reassignVehicle");
     const dSel = document.getElementById("reassignDriver");
@@ -958,7 +931,7 @@
   function handleTableAction(code, action, sel) {
     if (!action) return;
     sel.value = "";
-    if (action === "approve")       openApprovalModal(code);
+    if (action === "approve")       doApprove(code);
     else if (action === "reassign") openReassignModal(code);
     else openReason({ code, actionType: action });
   }
@@ -1137,19 +1110,21 @@
   function handleResAction(code, action, sel) {
     if (!action) return;
     sel.value = "";
-    if (action === "approve")       openApprovalModal(code);
+    if (action === "approve")       doApprove(code);
     else if (action === "reassign") openReassignModal(code);
     else openReason({ code, actionType: action });
   }
 
-  // ── Approval modal ────────────────────────────────────────────
-  function openApprovalModal(code) {
-    approvalCtx = { code };
-    const item = allSchedules.find(s => s.reservationCode === code || s.reservation_code === code)
+  // ── Approve confirm modal ─────────────────────────────────────
+  let approveCtx = null; // { code }
+
+  function doApprove(code) {
+    approveCtx = { code };
+    const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
                || pendingList.find(s => (s.reservationCode || s.reservation_code) === code);
-    const summary = document.getElementById("approvalSummary");
+    const el = document.getElementById("approveConfirmSummary");
     if (item) {
-      summary.innerHTML = `
+      el.innerHTML = `
         <strong style="color:var(--green);">${code}</strong><br>
         <span style="color:var(--gray-600);">
           ${item.dateDisplay || displayDate(item.date)} &nbsp;·&nbsp;
@@ -1158,30 +1133,22 @@
           Requestor: <strong>${item.mainRequestor || item.main_requestor || ""}</strong>
         </span>`;
     } else {
-      summary.innerHTML = `<strong style="color:var(--green);">${code}</strong>`;
+      el.innerHTML = `<strong style="color:var(--green);">${code}</strong>`;
     }
-    const vSel = document.getElementById("approvalVehicle");
-    const dSel = document.getElementById("approvalDriver");
-    if (vSel.options.length) vSel.selectedIndex = 0;
-    if (dSel.options.length) dSel.selectedIndex = 0;
-    document.getElementById("approvalModal").classList.add("is-open");
+    document.getElementById("approveConfirmModal").classList.add("is-open");
   }
 
-  function closeApprovalModal() {
-    document.getElementById("approvalModal").classList.remove("is-open");
-    approvalCtx = null;
+  function closeApproveConfirm() {
+    document.getElementById("approveConfirmModal").classList.remove("is-open");
+    approveCtx = null;
   }
 
-  async function confirmApproval() {
-    if (!approvalCtx) return;
-    const vSel = document.getElementById("approvalVehicle");
-    const dSel = document.getElementById("approvalDriver");
-    if (!vSel.value) { toast("Please select a vehicle.", "error"); return; }
-    if (!dSel.value) { toast("Please select a driver.", "error"); return; }
-    const [vehicleName, vehiclePlate] = vSel.value.split("||");
-    const driverName = dSel.value;
-    const code = approvalCtx.code;
-    closeApprovalModal();
+  async function submitApproveConfirm() {
+    if (!approveCtx) return;
+    const code = approveCtx.code;
+    const defaultVehicle = vehicles[0] || { name: "", plate: "" };
+    const defaultDriver  = drivers[0]  || "";
+    closeApproveConfirm();
     toast(`Approving ${code}…`, "info");
     try {
       const r = await apiPost({
@@ -1189,8 +1156,10 @@
         reservationCode: code,
         newStatus: "Approved",
         reason: null,
-        vehicleName, vehiclePlate, driverName,
-        supporting: "",
+        vehicleName:  defaultVehicle.name,
+        vehiclePlate: defaultVehicle.plate,
+        driverName:   defaultDriver,
+        supporting:   "",
         isReassignment: false
       });
       if (r.success) {
@@ -1273,6 +1242,8 @@
       } else toast("Failed: " + (r.message || r.error), "error");
     } catch(e) { toast("Error: " + e.message, "error"); }
   }
+
+  async function confirmDeleteRes(code) {
     if (!confirm(`Delete reservation ${code}? This cannot be undone.`)) return;
     toast(`Deleting ${code}…`, "info");
     try {
@@ -1413,8 +1384,8 @@
     document.getElementById("closeAddDean").addEventListener("click", closeAddDean);
     document.getElementById("cancelDean").addEventListener("click", closeAddDean);
     document.getElementById("submitDean").addEventListener("click", submitDean);
-    document.getElementById("cancelApproval").addEventListener("click", closeApprovalModal);
-    document.getElementById("confirmApproval").addEventListener("click", confirmApproval);
+    document.getElementById("cancelApproveConfirm").addEventListener("click", closeApproveConfirm);
+    document.getElementById("submitApproveConfirm").addEventListener("click", submitApproveConfirm);
     document.getElementById("cancelReassign").addEventListener("click", closeReassignModal);
     document.getElementById("confirmReassign").addEventListener("click", confirmReassign);
     document.getElementById("closeDayModal").addEventListener("click", closeDayModal);
@@ -1446,11 +1417,11 @@
       if (e.target === document.getElementById("dayModal")) closeDayModal();
       if (e.target === document.getElementById("reasonModal")) closeReason();
       if (e.target === document.getElementById("addDeanModal")) closeAddDean();
-      if (e.target === document.getElementById("approvalModal")) closeApprovalModal();
+      if (e.target === document.getElementById("approveConfirmModal")) closeApproveConfirm();
       if (e.target === document.getElementById("reassignModal")) closeReassignModal();
     });
     document.addEventListener("keydown", e => {
-      if (e.key === "Escape") { closeDayModal(); closeReason(); closeAddDean(); closeApprovalModal(); closeReassignModal(); }
+      if (e.key === "Escape") { closeDayModal(); closeReason(); closeAddDean(); closeApproveConfirm(); closeReassignModal(); }
     });
   }
 </script>
