@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CHE Vehicle Reservation Admin</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
@@ -632,8 +633,24 @@
 <!-- REASSIGN MODAL -->
 <div class="reason-modal" id="reassignModal">
   <div class="reason-box" style="max-width:520px;">
-    <h3 style="color:var(--purple);"><i class="fas fa-exchange-alt"></i> Reassign Vehicle / Driver</h3>
+    <h3 style="color:var(--purple);"><i class="fas fa-exchange-alt"></i> Reschedule / Reassign</h3>
     <div id="reassignSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin:12px 0;font-size:13px;"></div>
+    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Date</label>
+        <input type="date" id="reassignDate" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Start Time</label>
+        <input type="time" id="reassignStart" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">End Time</label>
+        <input type="time" id="reassignEnd" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
+      </div>
+    </div>
     <div style="margin-bottom:12px;">
       <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Vehicle</label>
       <select id="reassignVehicle" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
@@ -648,17 +665,17 @@
     </div>
     <div style="margin-bottom:16px;">
       <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">
-        Reason for Reassignment <span style="color:var(--red);">*</span>
+        Reason for Reschedule/Reassignment <span style="color:var(--red);">*</span>
       </label>
       <textarea id="reassignReason" rows="3"
         style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;resize:vertical;"
         placeholder="e.g. Default vehicle is under maintenance…"></textarea>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email.</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email. Saved to Supporting column (O).</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelReassign">Cancel</button>
       <button class="btn btn-purple" id="confirmReassign">
-        <i class="fas fa-exchange-alt"></i> Confirm Reassignment
+        <i class="fas fa-exchange-alt"></i> Confirm
       </button>
     </div>
   </div>
@@ -671,7 +688,7 @@
     <h3 style="color:var(--green);margin-bottom:12px;"><i class="fas fa-check-circle"></i> Approve Reservation</h3>
     <div id="approveConfirmSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:13px;line-height:1.6;"></div>
     <div style="background:var(--green-light);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--green);border-left:3px solid var(--green);">
-      <i class="fas fa-info-circle"></i> Default vehicle and driver will be assigned. Use <strong>Reassign</strong> to change.
+      <i class="fas fa-info-circle"></i> Default vehicle and driver will be assigned. Use <strong>Reschedule/Reassign</strong> to change.
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelApproveConfirm">Cancel</button>
@@ -702,14 +719,14 @@
   }
 
   async function apiPost(body) {
-  const res = await fetch(GAS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },   // ← bypasses CORS preflight
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
 
   // ── State ────────────────────────────────────────────────────
   let currentDate    = new Date();
@@ -916,7 +933,7 @@
           <select class="action-select" onchange="handleTableAction('${r.reservationCode || r.reservation_code || ""}', this.value, this)">
             <option value="">— Action —</option>
             <option value="approve">Approve</option>
-            <option value="reassign">Reassign</option>
+            <option value="reassign">Reschedule/Reassign</option>
             <option value="disapprove">Disapprove</option>
             <option value="cancel">Cancel</option>
             <option value="delete">Delete</option>
@@ -967,7 +984,7 @@
           <select class="action-select" onchange="handleResAction('${code}', this.value, this)">
             <option value="">— Action —</option>
             <option value="approve">Approve</option>
-            <option value="reassign">Reassign</option>
+            <option value="reassign">Reschedule/Reassign</option>
             <option value="disapprove">Disapprove</option>
             <option value="cancel">Cancel</option>
           </select>
@@ -978,7 +995,7 @@
       } else if (status === "approved") {
         actionHtml = `<div class="action-row">
           <button class="btn btn-purple" style="font-size:12px;padding:6px 10px;" onclick="openReassignModal('${code}')">
-            <i class="fas fa-exchange-alt"></i> Reassign
+            <i class="fas fa-exchange-alt"></i> Reschedule/Reassign
           </button>
           <button class="btn btn-amber" style="font-size:12px;padding:6px 10px;" onclick="openReason({code:'${code}', actionType:'cancel'})">
             <i class="fas fa-ban"></i> Cancel
@@ -1015,13 +1032,12 @@
 
     card.innerHTML = `
       <div class="item-card-header">
-        <span class="item-time">${start} – ${end}</span>
+        <span class="item-time">${displayDate(item.date)} &nbsp;·&nbsp; ${start} – ${end}</span>
         <span class="source-badge ${isDean ? "dean" : "reservation"}">${item.source}</span>
         <span class="status-badge status-${status}">${item.status || "Scheduled"}</span>
       </div>
       <div class="item-card-body">
         <div class="detail-grid">
-          ${showDate ? `<span class="detail-label">Date</span><span class="detail-value">${displayDate(item.date)}</span>` : ""}
           <span class="detail-label">Destination</span><span class="detail-value">${item.destination || ""}</span>
           <span class="detail-label">Purpose</span><span class="detail-value">${item.purpose || ""}</span>
           ${passengerHtml}
@@ -1169,7 +1185,7 @@
     } catch(e) { toast("Error: " + e.message, "error"); }
   }
 
-  // ── Reassign modal ──────────────────────────────────────────
+  // ── Reassign modal ────────────────────────────────────────────
   function openReassignModal(code) {
     reassignCtx = { code };
     const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
@@ -1192,6 +1208,12 @@
     if (vSel.options.length) vSel.selectedIndex = 0;
     if (dSel.options.length) dSel.selectedIndex = 0;
     document.getElementById("reassignReason").value = "";
+
+    // Pre-fill date/time with the reservation's current schedule
+    document.getElementById("reassignDate").value  = item ? fmtDate(parseDate(item.date)) : "";
+    document.getElementById("reassignStart").value = item ? to24Hour(item.startTime || item.start_time || "") : "";
+    document.getElementById("reassignEnd").value    = item ? to24Hour(item.endTime   || item.end_time   || "") : "";
+
     document.getElementById("reassignModal").classList.add("is-open");
   }
 
@@ -1205,15 +1227,20 @@
     if (!reassignCtx) return;
     const vSel   = document.getElementById("reassignVehicle");
     const dSel   = document.getElementById("reassignDriver");
+    const date   = document.getElementById("reassignDate").value;
+    const start  = document.getElementById("reassignStart").value;
+    const end    = document.getElementById("reassignEnd").value;
     const reason = document.getElementById("reassignReason").value.trim();
     if (!vSel.value) { toast("Please select a vehicle.", "error"); return; }
     if (!dSel.value) { toast("Please select a driver.", "error"); return; }
-    if (!reason)     { toast("Please provide a reason for the reassignment.", "error"); document.getElementById("reassignReason").focus(); return; }
+    if (!date)       { toast("Please select a date.", "error"); return; }
+    if (!start || !end) { toast("Please set both start and end time.", "error"); return; }
+    if (!reason)     { toast("Please provide a reason for the reschedule/reassignment.", "error"); document.getElementById("reassignReason").focus(); return; }
     const [vehicleName, vehiclePlate] = vSel.value.split("||");
     const driverName = dSel.value;
     const code = reassignCtx.code;
     closeReassignModal();
-    toast(`Reassigning ${code}…`, "info");
+    toast(`Updating ${code}…`, "info");
     try {
       const r = await apiPost({
         action: "updateReservationStatus",
@@ -1222,10 +1249,13 @@
         reason: null,
         vehicleName, vehiclePlate, driverName,
         supporting: reason,
+        newDate: date,
+        newStartTime: start,
+        newEndTime: end,
         isReassignment: true
       });
       if (r.success) {
-        toast(`${code} reassigned · ${vehicleName} · ${driverName}` + (r.emailSent ? ` · Email sent` : ""), "success");
+        toast(`${code} updated · ${vehicleName} · ${driverName}` + (r.emailSent ? ` · Email sent` : ""), "success");
         closeDayModal(); await loadAll();
       } else toast("Failed: " + (r.message || r.error), "error");
     } catch(e) { toast("Error: " + e.message, "error"); }
@@ -1356,6 +1386,16 @@
     if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
     if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
     return h * 60 + mins;
+  }
+  // Convert "2:00 PM" style display time to 24hr "HH:MM" for <input type="time">
+  function to24Hour(t) {
+    if (!t) return "";
+    const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!m) return "";
+    let h = +m[1]; const mins = m[2];
+    if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+    if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+    return `${String(h).padStart(2,"0")}:${mins}`;
   }
   function sectionLabel(icon, text) {
     const el = document.createElement("div");
