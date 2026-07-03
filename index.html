@@ -670,7 +670,7 @@
       <textarea id="reassignReason" rows="3"
         style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;resize:vertical;"
         placeholder="e.g. Default vehicle is under maintenance…"></textarea>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email.</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email. Saved to Supporting column (O).</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelReassign">Cancel</button>
@@ -1132,12 +1132,26 @@
   }
 
   // ── Approve confirm modal ─────────────────────────────────────
-  let approveCtx = null; // { code }
+  let approveCtx = null; // { code, defaultVehicle }
+
+  // Parses "Toyota Hi-Ace (ABC-123)" or "Toyota Hi-Ace" back into { name, plate }
+  function parseVehicleString(str) {
+    if (!str) return null;
+    const m = String(str).trim().match(/^(.*?)\s*\(([^)]+)\)$/);
+    if (m) return { name: m[1].trim(), plate: m[2].trim() };
+    return { name: str.trim(), plate: "" };
+  }
 
   function doApprove(code) {
-    approveCtx = { code };
     const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
                || pendingList.find(s => (s.reservationCode || s.reservation_code) === code);
+
+    // Default to whatever the requestor asked for; fall back to vehicles[0] if none was requested
+    const requested = item ? parseVehicleString(item.vehicle) : null;
+    const defaultVehicle = requested || vehicles[0] || { name: "", plate: "" };
+
+    approveCtx = { code, defaultVehicle };
+
     const el = document.getElementById("approveConfirmSummary");
     if (item) {
       el.innerHTML = `
@@ -1146,7 +1160,8 @@
           ${item.dateDisplay || displayDate(item.date)} &nbsp;·&nbsp;
           ${item.startTime || item.start_time || ""} – ${item.endTime || item.end_time || ""}<br>
           Destination: <strong>${item.destination || ""}</strong><br>
-          Requestor: <strong>${item.mainRequestor || item.main_requestor || ""}</strong>
+          Requestor: <strong>${item.mainRequestor || item.main_requestor || ""}</strong><br>
+          Vehicle to assign: <strong>${defaultVehicle.name}${defaultVehicle.plate ? ` — ${defaultVehicle.plate}` : ""}</strong>${requested ? "" : " <span style=\"color:var(--gray-400);\">(no vehicle was requested — using default)</span>"}
         </span>`;
     } else {
       el.innerHTML = `<strong style="color:var(--green);">${code}</strong>`;
@@ -1162,7 +1177,7 @@
   async function submitApproveConfirm() {
     if (!approveCtx) return;
     const code = approveCtx.code;
-    const defaultVehicle = vehicles[0] || { name: "", plate: "" };
+    const defaultVehicle = approveCtx.defaultVehicle || vehicles[0] || { name: "", plate: "" };
     const defaultDriver  = drivers[0]  || "";
     closeApproveConfirm();
     toast(`Approving ${code}…`, "info");
