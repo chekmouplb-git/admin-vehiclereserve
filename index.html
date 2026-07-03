@@ -500,7 +500,7 @@
         </div>
         <div class="source-filters">
           <button class="source-chip active" data-source="all">All</button>
-          <button class="source-chip" data-source="Dean Sched">Scheduled</button>
+          <button class="source-chip" data-source="Dean Sched">Dean Sched</button>
           <button class="source-chip" data-source="Reservations">Reservations</button>
         </div>
       </div>
@@ -567,7 +567,7 @@
 <div class="modal-overlay" id="addDeanModal">
   <div class="modal-box narrow">
     <div class="modal-header green">
-      <h3>Add Schedule</h3>
+      <h3>Add Dean Schedule</h3>
       <button class="btn-icon" id="closeAddDean" style="color:#fff;border-color:rgba(255,255,255,.3);"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
@@ -670,7 +670,7 @@
       <textarea id="reassignReason" rows="3"
         style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;resize:vertical;"
         placeholder="e.g. Default vehicle is under maintenance…"></textarea>
-      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email.</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email. Saved to Supporting column (O).</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelReassign">Cancel</button>
@@ -1113,7 +1113,7 @@
   }
 
   async function confirmDeleteDean(rowIndex) {
-    if (!confirm("Delete this schedule? This cannot be undone.")) return;
+    if (!confirm("Delete this Dean schedule? This cannot be undone.")) return;
     toast("Deleting…", "info");
     try {
       const r = await apiPost({ action: "deleteDeanSchedule", rowIndex });
@@ -1218,10 +1218,32 @@
     } else {
       el.innerHTML = `<strong style="color:var(--purple);">${code}</strong>`;
     }
+
     const vSel = document.getElementById("reassignVehicle");
     const dSel = document.getElementById("reassignDriver");
-    if (vSel.options.length) vSel.selectedIndex = 0;
-    if (dSel.options.length) dSel.selectedIndex = 0;
+
+    // Pre-select whatever's currently on the reservation — the requestor's
+    // choice if still pending, or the confirmed assignment if already
+    // approved — instead of always defaulting to the first option.
+    const current = item ? parseVehicleString(item.vehicle) : null;
+    let matchedVehicle = false;
+    if (current && current.name) {
+      for (let i = 0; i < vSel.options.length; i++) {
+        const [optName] = vSel.options[i].value.split("||");
+        if (optName === current.name) { vSel.selectedIndex = i; matchedVehicle = true; break; }
+      }
+    }
+    if (!matchedVehicle && vSel.options.length) vSel.selectedIndex = 0;
+
+    const currentDriver = item ? (item.driver || "") : "";
+    let matchedDriver = false;
+    if (currentDriver) {
+      for (let i = 0; i < dSel.options.length; i++) {
+        if (dSel.options[i].value === currentDriver) { dSel.selectedIndex = i; matchedDriver = true; break; }
+      }
+    }
+    if (!matchedDriver && dSel.options.length) dSel.selectedIndex = 0;
+
     document.getElementById("reassignReason").value = "";
 
     // Pre-fill date/time with the reservation's current schedule
@@ -1305,7 +1327,7 @@
     const map = {
       disapprove:   ["Disapprove reservation", "Provide a reason for disapproving:"],
       cancel:       ["Cancel reservation", "Provide a reason for cancelling:"],
-      "cancel-dean":["Cancel schedule", "Provide a reason for cancelling:"],
+      "cancel-dean":["Cancel Dean schedule", "Provide a reason for cancelling:"],
       delete:       ["Delete reservation", "Provide a reason for deleting (permanent):"]
     };
     const [title, desc] = map[at] || ["Reason", "Provide a reason:"];
