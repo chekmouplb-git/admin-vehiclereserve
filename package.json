@@ -1,0 +1,13 @@
+{
+  "name": "che-vehicle-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CHE Vehicle Reservation Admin — static page + Apps Script backend",
+  "type": "module",
+  "scripts": {
+    "test": "node smoke-test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}
