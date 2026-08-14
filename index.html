@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CHE Vehicle Reservation Admin</title>
   <link rel="icon" type="image/png" href="/favicon.png">
+
+  <!-- PERF: warm up the TLS handshake to Apps Script before the first fetch.
+       GAS answers /exec with a 302 to script.googleusercontent.com, so both
+       hosts get hit on every request. This shaves ~200-400ms off first paint. -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --green:       #00563F;
       --green-mid:   #6C8D13;
@@ -38,7 +44,6 @@
       --shadow-sm:   0 1px 3px rgba(0,0,0,.08);
       --shadow-md:   0 4px 16px rgba(0,0,0,.12);
     }
-
     body {
       font-family: 'Lato', sans-serif;
       background: #f0f2f0;
@@ -46,7 +51,6 @@
       font-size: 14px;
       line-height: 1.5;
     }
-
     /* ── NAVBAR ── */
     .navbar {
       background: var(--green);
@@ -86,14 +90,45 @@
     @media (max-width: 500px) {
       .navbar-site-name, .navbar-title-block p { display: none; }
     }
-
     /* ── LAYOUT ── */
     .page-body {
       max-width: 1600px;
       margin: 0 auto;
       padding: 16px 16px 48px;
     }
-
+    /* ── CONNECTION BANNER (new) ── */
+    .conn-banner {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: var(--red-light);
+      border: 1px solid #f5b7b1;
+      border-left: 4px solid var(--red);
+      border-radius: var(--r-md);
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      color: #7b241c;
+    }
+    .conn-banner.is-open { display: flex; }
+    .conn-banner.warn {
+      background: var(--amber-light);
+      border-color: #f8d7a3;
+      border-left-color: var(--amber);
+      color: #7a4f00;
+    }
+    .conn-banner .conn-msg { flex: 1; }
+    /* ── STATUS STRIP (new) ── */
+    .status-strip {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-bottom: 8px;
+      min-height: 16px;
+    }
     /* ── TABS ── */
     .tabs {
       display: flex;
@@ -138,11 +173,9 @@
     .tab-badge.pending { background: var(--amber) !important; color: #fff !important; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-
     /* ── CARD ── */
     .card { background: #fff; border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
     .card-body { padding: 16px 20px; }
-
     /* ── CALENDAR ── */
     .cal-toolbar {
       display: flex;
@@ -170,7 +203,6 @@
     }
     .source-chip:hover { border-color: var(--green); color: var(--green); }
     .source-chip.active { background: var(--green); color: #fff; border-color: var(--green); }
-
     .cal-grid {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -211,7 +243,7 @@
       border-radius: 50%; display: flex; align-items: center; justify-content: center;
       margin-bottom: 4px; flex-shrink: 0;
     }
-    .today .day-num { background: var(--green); color: #fff; }
+    .day-num.is-today { background: var(--green); color: #fff; }
     .cal-items { overflow: hidden; }
     .cal-item {
       font-size: 10px; font-weight: 600; padding: 2px 5px; border-radius: 3px;
@@ -227,7 +259,6 @@
       padding: 2px 5px; cursor: pointer; border-radius: 3px;
     }
     .cal-more:hover { background: var(--blue-light); }
-
     /* ── LEGEND ── */
     .legend {
       display: flex; gap: 16px; flex-wrap: wrap;
@@ -236,7 +267,6 @@
     }
     .legend-item { display: flex; align-items: center; gap: 6px; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
     /* ── MODALS ── */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
@@ -259,7 +289,6 @@
     .modal-header h3 { font-size: 16px; font-weight: 700; }
     .modal-header.green { background: var(--green); }
     .modal-body { padding: 20px; max-height: 75vh; overflow-y: auto; }
-
     /* ── ITEM CARDS ── */
     .item-card {
       border: 1px solid var(--border); border-radius: var(--r-md);
@@ -293,7 +322,6 @@
     @media (max-width: 480px) { .detail-grid { grid-template-columns: 1fr; } }
     .detail-label { font-weight: 700; color: var(--gray-600); }
     .detail-value { color: var(--text); }
-
     /* Passenger list */
     .passenger-list {
       background: var(--gray-50); border-radius: var(--r-sm);
@@ -313,7 +341,6 @@
       cursor: pointer; margin-top: 6px; display: inline-block;
     }
     .toggle-passengers:hover { text-decoration: underline; }
-
     /* ── ACTION ROW ── */
     .action-row {
       display: flex; align-items: center; gap: 8px;
@@ -325,7 +352,6 @@
       font-size: 13px; cursor: pointer; color: var(--text); background: #fff;
     }
     .action-select:focus { outline: none; border-color: var(--green); }
-
     /* ── BUTTONS ── */
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
@@ -334,6 +360,7 @@
       cursor: pointer; transition: filter .15s; white-space: nowrap;
     }
     .btn:hover { filter: brightness(.92); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; filter: none; }
     .btn-green  { background: var(--green); color: #fff; }
     .btn-blue   { background: var(--blue); color: #fff; }
     .btn-slate  { background: var(--slate); color: #fff; }
@@ -349,7 +376,8 @@
       font-size: 14px; cursor: pointer; transition: background .15s;
     }
     .btn-icon:hover { background: var(--gray-50); }
-
+    .btn-icon:disabled { opacity: .5; cursor: not-allowed; }
+    .spinning { animation: spin 1s linear infinite; }
     /* ── REASON MODAL ── */
     .reason-modal {
       display: none; position: fixed; inset: 0;
@@ -371,8 +399,7 @@
       resize: vertical; min-height: 90px; margin-bottom: 14px;
     }
     .reason-textarea:focus { outline: none; border-color: var(--green); }
-
-    /* ── ADD DEAN MODAL FORM ── */
+    /* ── FORMS ── */
     .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
     .form-group label { font-size: 12px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: .04em; }
     .form-group input,
@@ -394,7 +421,17 @@
       border-radius: var(--r-sm); padding: 10px 14px;
       font-size: 13px; color: var(--red); margin-bottom: 12px; display: none;
     }
-
+    .mini-label {
+      font-size: 11px; font-weight: 700; color: var(--gray-600);
+      text-transform: uppercase; letter-spacing: .05em;
+      display: block; margin-bottom: 4px;
+    }
+    .mini-input {
+      width: 100%; padding: 10px 12px;
+      border: 1.5px solid var(--border); border-radius: var(--r-sm);
+      font-family: 'Lato', sans-serif; font-size: 14px;
+      color: var(--text); background: #fff;
+    }
     /* ── TABLE ── */
     .table-wrap { overflow-x: auto; }
     table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -406,7 +443,6 @@
     .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
     .data-table tr:hover td { background: var(--gray-50); }
     .data-table tr:last-child td { border-bottom: none; }
-
     /* ── SECTION LABEL ── */
     .section-label {
       font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -414,7 +450,6 @@
       padding: 10px 0 6px; display: flex; align-items: center; gap: 6px;
     }
     .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
     /* ── TOAST ── */
     .toast-stack {
       position: fixed; top: 70px; right: 16px;
@@ -430,8 +465,7 @@
     .toast-success { background: var(--green); }
     .toast-error   { background: var(--red); }
     .toast-info    { background: var(--blue); }
-
-    /* ── EMPTY / SPINNER ── */
+    /* ── EMPTY / SPINNER / SKELETON ── */
     .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-400); font-style: italic; }
     .spin-inline {
       width: 16px; height: 16px;
@@ -440,14 +474,30 @@
       display: inline-block; vertical-align: middle;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .skel {
+      background: linear-gradient(90deg, #eef0f2 25%, #f6f8fa 50%, #eef0f2 75%);
+      background-size: 400% 100%;
+      animation: shimmer 1.3s ease-in-out infinite;
+      border-radius: var(--r-sm);
+    }
+    @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
   </style>
 </head>
 <body>
-
 <!-- NAVBAR -->
 <nav class="navbar">
   <a href="https://bit.ly/che-dghub" target="_blank" rel="noopener noreferrer" class="navbar-brand">
-    <img src="data:image/png;base64,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" alt="CHE Logo" class="navbar-logo">
+    <!-- ============================================================
+         LOGO — ONE-TIME PASTE
+         Open your OLD admin file, find the <img ... class="navbar-logo">
+         tag, copy the whole value of its src="..." attribute (the long
+         "data:image/png;base64,iVBORw0KGgo..." string) and paste it over
+         the src value below, replacing the placeholder SVG.
+         Until you do, the green CHE monogram below stands in — nothing
+         else on the page depends on it.
+         ============================================================ -->
+    <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20width%3D'64'%20height%3D'64'%20rx%3D'12'%20fill%3D'%23ffffff'%2F%3E%3Ctext%20x%3D'32'%20y%3D'41'%20font-family%3D'Lato%2CArial%2Csans-serif'%20font-size%3D'22'%20font-weight%3D'700'%20fill%3D'%2300563F'%20text-anchor%3D'middle'%3ECHE%3C%2Ftext%3E%3C%2Fsvg%3E"
+         alt="CHE Logo" class="navbar-logo">
     <span class="navbar-site-name">CHE DigiHub</span>
   </a>
   <div class="navbar-title-block">
@@ -458,13 +508,24 @@
     <button class="btn btn-purple" id="addDeanBtn" style="font-size:12px;padding:6px 12px;">
       <i class="fas fa-plus"></i> Add Schedule
     </button>
-    <button class="btn btn-ghost" id="refreshBtn" style="color:#fff;border-color:rgba(255,255,255,.4);">
-      <i class="fas fa-sync-alt"></i>
+    <button class="btn-icon" id="refreshBtn" style="color:#fff;border-color:rgba(255,255,255,.4);" title="Refresh">
+      <i class="fas fa-sync-alt" id="refreshIcon"></i>
     </button>
   </div>
 </nav>
-
 <main class="page-body">
+
+  <!-- CONNECTION BANNER -->
+  <div class="conn-banner" id="connBanner">
+    <i class="fas fa-triangle-exclamation" style="font-size:18px;"></i>
+    <div class="conn-msg" id="connMsg">Couldn't reach the server.</div>
+    <button class="btn btn-red" id="connRetry" style="padding:6px 12px;font-size:12px;">
+      <i class="fas fa-rotate-right"></i> Retry
+    </button>
+  </div>
+
+  <!-- STATUS STRIP -->
+  <div class="status-strip" id="statusStrip"></div>
 
   <!-- Tabs -->
   <div class="tabs">
@@ -485,7 +546,6 @@
       <span class="tab-badge pending" id="badge-pending">0</span>
     </button>
   </div>
-
   <!-- CALENDAR TAB -->
   <div id="tab-calendar" class="tab-content active">
     <div class="card">
@@ -504,41 +564,33 @@
           <button class="source-chip" data-source="Reservations">Reservations</button>
         </div>
       </div>
-      <div class="cal-grid" id="calGrid">
-        <div style="grid-column:span 7;" class="empty-state"><span class="spin-inline"></span> Loading…</div>
-      </div>
+      <div class="cal-grid" id="calGrid"></div>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Schedule</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Pencil Booked</div>
         <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Approved</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--gray-400)"></div> Cancelled/Disapproved</div>
       </div>
     </div>
   </div>
-
   <!-- TODAY TAB -->
   <div id="tab-today" class="tab-content">
     <div class="card card-body">
       <div id="todayList"><div class="empty-state"><span class="spin-inline"></span></div></div>
     </div>
   </div>
-
   <!-- UPCOMING TAB -->
   <div id="tab-upcoming" class="tab-content">
     <div class="card card-body">
       <div id="upcomingList"><div class="empty-state"><span class="spin-inline"></span></div></div>
     </div>
   </div>
-
   <!-- PENDING TAB -->
   <div id="tab-pending" class="tab-content">
     <div class="card card-body">
       <div id="pendingContainer"><div class="empty-state"><span class="spin-inline"></span></div></div>
     </div>
   </div>
-
 </main>
-
 <!-- DAY / DETAIL MODAL -->
 <div class="modal-overlay" id="dayModal">
   <div class="modal-box">
@@ -549,7 +601,6 @@
     <div class="modal-body" id="dayModalBody"></div>
   </div>
 </div>
-
 <!-- REASON MODAL (disapprove / cancel / delete) -->
 <div class="reason-modal" id="reasonModal">
   <div class="reason-box">
@@ -562,7 +613,6 @@
     </div>
   </div>
 </div>
-
 <!-- ADD DEAN SCHEDULE MODAL -->
 <div class="modal-overlay" id="addDeanModal">
   <div class="modal-box narrow">
@@ -629,968 +679,1115 @@
     </div>
   </div>
 </div>
-
 <!-- REASSIGN MODAL -->
 <div class="reason-modal" id="reassignModal">
   <div class="reason-box" style="max-width:520px;">
     <h3 style="color:var(--purple);"><i class="fas fa-exchange-alt"></i> Reschedule / Reassign</h3>
     <div id="reassignSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin:12px 0;font-size:13px;"></div>
-    <div style="display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:12px;">
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Date</label>
-        <input type="date" id="reassignDate" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-      </div>
+    <div style="margin-bottom:12px;">
+      <label class="mini-label">Date</label>
+      <input type="date" id="reassignDate" class="mini-input">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Start Time</label>
-        <input type="time" id="reassignStart" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
+        <label class="mini-label">Start Time</label>
+        <input type="time" id="reassignStart" class="mini-input">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">End Time</label>
-        <input type="time" id="reassignEnd" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
+        <label class="mini-label">End Time</label>
+        <input type="time" id="reassignEnd" class="mini-input">
       </div>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Vehicle</label>
-      <select id="reassignVehicle" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading vehicles…</option>
-      </select>
+      <label class="mini-label">Vehicle</label>
+      <select id="reassignVehicle" class="mini-input"><option value="">Loading vehicles…</option></select>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Driver</label>
-      <select id="reassignDriver" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading drivers…</option>
-      </select>
+      <label class="mini-label">Driver</label>
+      <select id="reassignDriver" class="mini-input"><option value="">Loading drivers…</option></select>
     </div>
     <div style="margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">
-        Reason for Reschedule/Reassignment <span style="color:var(--red);">*</span>
-      </label>
-      <textarea id="reassignReason" rows="3"
-        style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;resize:vertical;"
+      <label class="mini-label">Reason for Reschedule/Reassignment <span style="color:var(--red);">*</span></label>
+      <textarea id="reassignReason" rows="3" class="mini-input" style="resize:vertical;"
         placeholder="e.g. Default vehicle is under maintenance…"></textarea>
       <div style="font-size:11px;color:var(--gray-400);margin-top:3px;">The requestor will be notified by email.</div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelReassign">Cancel</button>
-      <button class="btn btn-purple" id="confirmReassign">
-        <i class="fas fa-exchange-alt"></i> Confirm
-      </button>
+      <button class="btn btn-purple" id="confirmReassign"><i class="fas fa-exchange-alt"></i> Confirm</button>
     </div>
   </div>
 </div>
-
-
 <!-- APPROVE CONFIRM MODAL -->
 <div class="reason-modal" id="approveConfirmModal">
   <div class="reason-box" style="max-width:480px;">
     <h3 style="color:var(--green);margin-bottom:12px;"><i class="fas fa-check-circle"></i> Approve Reservation</h3>
     <div id="approveConfirmSummary" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px;margin-bottom:16px;font-size:13px;line-height:1.6;"></div>
-
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Vehicle</label>
-      <select id="approveVehicle" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading vehicles…</option>
-      </select>
+      <label class="mini-label">Vehicle</label>
+      <select id="approveVehicle" class="mini-input"><option value="">Loading vehicles…</option></select>
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">Driver</label>
-      <select id="approveDriver" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;color:var(--text);background:#fff;">
-        <option value="">Loading drivers…</option>
-      </select>
+      <label class="mini-label">Driver</label>
+      <select id="approveDriver" class="mini-input"><option value="">Loading drivers…</option></select>
     </div>
-
-    <!-- Shown only if the admin changes vehicle or driver away from the requested/default -->
     <div id="approveReasonWrap" style="display:none;margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;">
+      <label class="mini-label" style="color:var(--amber);">
         <i class="fas fa-exclamation-triangle"></i> Reason for Reassignment <span style="color:var(--red);">*</span>
       </label>
-      <textarea id="approveReason" rows="3"
-        style="width:100%;padding:10px 12px;border:1.5px solid var(--amber);border-radius:var(--r-sm);font-family:Lato,sans-serif;font-size:14px;resize:vertical;"
+      <textarea id="approveReason" rows="3" class="mini-input" style="border-color:var(--amber);resize:vertical;"
         placeholder="e.g. Requested vehicle is under maintenance…"></textarea>
       <div style="font-size:11px;color:var(--gray-600);margin-top:3px;">Changing the vehicle or driver here will notify the requestor as a reassignment.</div>
     </div>
-
     <div id="approveDefaultNote" style="background:var(--green-light);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--green);border-left:3px solid var(--green);">
       <i class="fas fa-info-circle"></i> These are pre-filled from the request (or the default if none was specified). Change either to reassign.
     </div>
-
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button class="btn btn-ghost" id="cancelApproveConfirm">Cancel</button>
-      <button class="btn btn-green" id="submitApproveConfirm">
-        <i class="fas fa-check"></i> Confirm Approval
-      </button>
+      <button class="btn btn-green" id="submitApproveConfirm"><i class="fas fa-check"></i> Confirm Approval</button>
     </div>
   </div>
 </div>
-
 <!-- TOAST STACK -->
 <div class="toast-stack" id="toastStack"></div>
 
 <script>
-  // ============================================================
-  // PASTE YOUR ADMIN GAS DEPLOYMENT URL HERE
-  // ============================================================
-  const GAS_URL = "https://script.google.com/macros/s/AKfycby_Brzn0ju-QlMIAjJl9wBHfzF2x9BBpAkuigXgqvKkdf8KQ0i1WITFZ5WLjTwqAu8Zeg/exec";
+"use strict";
+// ============================================================
+// PASTE YOUR ADMIN GAS DEPLOYMENT URL HERE
+// ============================================================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbysjaCu6ia8TOuIvXfhbNO1VDhvXha9hOUw7KWguPb3hJGhcUYzvfXHEImRuPuGtNzk/exec"
 
-  // ── API helpers ──────────────────────────────────────────────
-  async function apiGet(action, params = {}) {
-    const url = new URL(GAS_URL);
-    url.searchParams.set("action", action);
-    for (const [k,v] of Object.entries(params)) url.searchParams.set(k, v);
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+// How long to wait on a single request before giving up on it (ms).
+const REQUEST_TIMEOUT = 30000;
+// How many times to retry a *transient* failure (404 / 429 / 5xx / network).
+const MAX_RETRIES = 3;
+
+// ============================================================
+// API layer — retrying fetch
+// ============================================================
+// WHY THIS EXISTS: Apps Script answers /exec with a 302 to a
+// single-use script.googleusercontent.com URL. Under concurrency
+// or load, that second hop intermittently comes back 404 even
+// though nothing is wrong with your script. v1 fired four parallel
+// requests through Promise.all, so ONE unlucky 404 killed the whole
+// page load. We now make one request, and retry transient failures
+// with exponential backoff + jitter instead of surfacing them.
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function isTransient(status) {
+  return status === 0 || status === 404 || status === 429 || status >= 500;
+}
+
+async function rawFetch(url, opts) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT);
+  try {
+    const res = await fetch(url, Object.assign({}, opts, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      cache: "no-store"
+    }));
+    const text = await res.text();
+    return { status: res.status, ok: res.ok, text };
+  } finally {
+    clearTimeout(timer);
   }
+}
 
-  async function apiPost(body) {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },   // avoids CORS preflight on GAS
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+async function apiCall(url, opts, label) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const backoff = 500 * Math.pow(2, attempt - 1) + Math.random() * 400;
+      setStatus(`Retrying (${attempt}/${MAX_RETRIES})…`);
+      await sleep(backoff);
+    }
+    try {
+      const res = await rawFetch(url, opts);
+      if (res.ok) {
+        let parsed;
+        try {
+          parsed = JSON.parse(res.text);
+        } catch (e) {
+          // A Google sign-in / error page came back instead of JSON.
+          // Almost always a deployment access-permission problem.
+          throw new Error("The server returned a page instead of data. Check that the Apps Script deployment is set to “Anyone” access.");
+        }
+        if (parsed && parsed.error && !("success" in parsed)) throw new Error(parsed.error);
+        return parsed;
+      }
+      if (isTransient(res.status)) {
+        lastErr = new Error(`HTTP ${res.status}`);
+        continue;
+      }
+      throw new Error(`HTTP ${res.status}`);
+    } catch (e) {
+      if (e.name === "AbortError") {
+        lastErr = new Error("Request timed out");
+        continue;
+      }
+      // A network-level TypeError is transient too (flaky wifi, CORS blip).
+      if (e instanceof TypeError) { lastErr = new Error("Network error"); continue; }
+      throw e;
+    }
   }
+  throw lastErr || new Error(`${label} failed`);
+}
 
-  // ── State ────────────────────────────────────────────────────
-  let currentDate    = new Date();
-  let allSchedules   = [];
-  let pendingList    = [];
-  let destinations   = [];
-  let vehicles       = []; // { name, plate }
-  let drivers        = []; // string[]
-  let activeSource   = "all";
-  let pendingAction  = null; // { code, rowIndex, type, actionType }
-  let reassignCtx    = null; // { code } — reservation being reassigned
+function apiGet(action, params = {}) {
+  const url = new URL(GAS_URL);
+  url.searchParams.set("action", action);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  url.searchParams.set("_", Date.now()); // defeat any intermediary caching of the redirect
+  return apiCall(url.toString(), { method: "GET" }, action);
+}
 
-  // ── Boot ─────────────────────────────────────────────────────
-  window.addEventListener("DOMContentLoaded", () => {
-    setupListeners();
-    loadAll();
+function apiPost(body) {
+  return apiCall(GAS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids CORS preflight on GAS
+    body: JSON.stringify(body)
+  }, body.action);
+}
+
+// ============================================================
+// State
+// ============================================================
+let currentDate   = new Date();
+let allSchedules  = [];
+let pendingList   = [];
+let destinations  = [];
+let vehicles      = [];   // { name, plate }
+let drivers       = [];   // string[]
+let activeSource  = "all";
+let pendingAction = null;
+let reassignCtx   = null;
+let approveCtx    = null;
+let scheduleIndex = new Map();   // iso date -> items[]  (built once per data change)
+let itemsByKey    = new Map();   // stable key -> item   (avoids re-scanning arrays)
+let isLoading     = false;
+let lastLoadedAt  = null;
+
+// ============================================================
+// Escaping — every value from the sheet goes through these
+// ============================================================
+// v1 interpolated requestor names, destinations and purposes straight
+// into innerHTML. A reservation containing an apostrophe broke the
+// action buttons, and one containing a tag could inject script.
+function esc(v) {
+  if (v === null || v === undefined) return "";
+  return String(v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// ============================================================
+// Boot
+// ============================================================
+window.addEventListener("DOMContentLoaded", () => {
+  renderCalendarSkeleton();
+  setupListeners();
+  loadAll();
+});
+
+function setLoading(on) {
+  isLoading = on;
+  const icon = document.getElementById("refreshIcon");
+  const btn  = document.getElementById("refreshBtn");
+  if (icon) icon.classList.toggle("spinning", on);
+  if (btn)  btn.disabled = on;
+}
+
+function setStatus(text) {
+  const el = document.getElementById("statusStrip");
+  if (el) el.textContent = text || "";
+}
+
+function showBanner(msg, kind) {
+  const b = document.getElementById("connBanner");
+  document.getElementById("connMsg").textContent = msg;
+  b.classList.toggle("warn", kind === "warn");
+  b.classList.add("is-open");
+}
+function hideBanner() {
+  document.getElementById("connBanner").classList.remove("is-open");
+}
+
+// ── Single bootstrap request replaces the four v1 made ────────
+async function loadAll(opts = {}) {
+  if (isLoading) return;
+  setLoading(true);
+  setStatus("Loading…");
+  const t0 = performance.now();
+  try {
+    const data = await apiGet("getBootstrap", opts.fresh ? { fresh: 1 } : {});
+    applyData(data);
+    hideBanner();
+    const ms = Math.round(performance.now() - t0);
+    setStatus(`Updated ${new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })} · ${ms}ms${data.cached ? " · cached" : ""}`);
+  } catch (e) {
+    showBanner(`Couldn't load data: ${e.message}`, "error");
+    setStatus("");
+    // Keep whatever we already had on screen rather than blanking it.
+    if (!allSchedules.length) {
+      document.getElementById("calGrid").innerHTML =
+        `<div style="grid-column:span 7;" class="empty-state">No data loaded.</div>`;
+    }
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Applies a bootstrap payload (from a GET, or returned inline by a write).
+function applyData(data) {
+  if (!data) return;
+  allSchedules = data.schedules    || [];
+  pendingList  = data.pending      || [];
+  destinations = data.destinations || [];
+  vehicles     = data.vehicles     || [];
+  drivers      = data.drivers      || [];
+  lastLoadedAt = new Date();
+
+  buildIndexes();
+  populateDestList();
+  populateVehicleDriverSelects();
+  updateBadges();
+  renderCalendar();
+  renderToday();
+  renderUpcoming();
+  renderPending();
+}
+
+// v1 called getItemsForDate() inside every one of the 42 calendar
+// cells, each time filtering the whole schedule array. That is 42 full
+// passes per render. We index once instead.
+function buildIndexes() {
+  scheduleIndex = new Map();
+  itemsByKey    = new Map();
+  allSchedules.forEach((s, i) => {
+    const key = s.source === "Dean Sched"
+      ? `dean:${s.rowIndex}`
+      : `res:${s.reservationCode || "nocode-" + i}`;
+    s.__key = key;
+    // Normalised yyyy-MM-dd used for ALL date comparison and bucketing.
+    // v1 compared parseDate(s.date) (which lands at 12:00) against a
+    // midnight "today", so every one of today's trips also counted as
+    // "upcoming". Comparing normalised date strings removes that class
+    // of bug entirely.
+    s.__iso = fmtDate(parseDate(s.date));
+    itemsByKey.set(key, s);
+    if (!scheduleIndex.has(s.__iso)) scheduleIndex.set(s.__iso, []);
+    scheduleIndex.get(s.__iso).push(s);
+  });
+  scheduleIndex.forEach(list => list.sort((a, b) => toMin(a.startTime) - toMin(b.startTime)));
+  pendingList.forEach((p, i) => {
+    const key = `res:${p.reservationCode || "nocode-p" + i}`;
+    if (!itemsByKey.has(key)) itemsByKey.set(key, p);
+  });
+}
+
+function findByCode(code) {
+  return itemsByKey.get(`res:${code}`)
+      || allSchedules.find(s => s.reservationCode === code)
+      || pendingList.find(s => s.reservationCode === code)
+      || null;
+}
+
+// ── Dropdowns ────────────────────────────────────────────────
+function populateDestList() {
+  document.getElementById("destList").innerHTML =
+    destinations.map(d => `<option value="${esc(d)}">`).join("");
+}
+
+function vehicleOptions(markDefault) {
+  if (!vehicles.length) return `<option value="">No vehicles found</option>`;
+  return vehicles.map((v, i) =>
+    `<option value="${esc(v.name)}||${esc(v.plate)}">${esc(v.name)}${v.plate ? ` — ${esc(v.plate)}` : ""}${markDefault && i === 0 ? " (default)" : ""}</option>`
+  ).join("");
+}
+function driverOptions(markDefault) {
+  if (!drivers.length) return `<option value="">No drivers found</option>`;
+  return drivers.map((d, i) =>
+    `<option value="${esc(d)}">${esc(d)}${markDefault && i === 0 ? " (default)" : ""}</option>`
+  ).join("");
+}
+
+function populateVehicleDriverSelects() {
+  document.getElementById("approveVehicle").innerHTML  = vehicleOptions(false);
+  document.getElementById("approveDriver").innerHTML   = driverOptions(false);
+  document.getElementById("reassignVehicle").innerHTML = vehicleOptions(true);
+  document.getElementById("reassignDriver").innerHTML  = driverOptions(true);
+}
+
+// ── Badges ───────────────────────────────────────────────────
+function updateBadges() {
+  const today = fmtDate(new Date());
+  document.getElementById("badge-calendar").textContent = allSchedules.length;
+  document.getElementById("badge-today").textContent    = (scheduleIndex.get(today) || []).length;
+  document.getElementById("badge-upcoming").textContent = allSchedules.filter(s => s.__iso > today).length;
+  document.getElementById("badge-pending").textContent  = pendingList.length;
+}
+
+// ── Calendar ─────────────────────────────────────────────────
+function renderCalendarSkeleton() {
+  const grid = document.getElementById("calGrid");
+  let html = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+    .map(d => `<div class="cal-dow">${d}</div>`).join("");
+  for (let i = 0; i < 35; i++) {
+    html += `<div class="cal-cell"><div class="skel" style="width:22px;height:22px;border-radius:50%;margin-bottom:6px;"></div>
+             <div class="skel" style="height:12px;margin-bottom:4px;"></div>
+             <div class="skel" style="height:12px;width:70%;"></div></div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function renderCalendar() {
+  const year = currentDate.getFullYear(), month = currentDate.getMonth();
+  const monthNames = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+  document.getElementById("calTitle").textContent = `${monthNames[month]} ${year}`;
+
+  // Build the whole month off-DOM, then attach once. v1 appended 49
+  // nodes one at a time, forcing a layout pass on each.
+  const frag = document.createDocumentFragment();
+  ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d => {
+    const h = document.createElement("div");
+    h.className = "cal-dow"; h.textContent = d; frag.appendChild(h);
   });
 
-  async function loadAll() {
-    try {
-      const [schedules, pending, dests, vd] = await Promise.all([
-        apiGet("getSchedules"),
-        apiGet("getPendingReservations"),
-        apiGet("getAllDestinations"),
-        apiGet("getVehiclesAndDrivers")
-      ]);
-      allSchedules = schedules || [];
-      pendingList  = pending   || [];
-      destinations = dests     || [];
-      vehicles     = vd.vehicles || [];
-      drivers      = vd.drivers  || [];
-      populateDestList();
-      populateApproveDropdowns();
-      populateReassignDropdowns();
-      updateBadges();
-      renderCalendar();
-      renderToday();
-      renderUpcoming();
-      renderPending();
-    } catch(e) {
-      toast("Failed to load data: " + e.message, "error");
-    }
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+
+  for (let i = 0; i < firstDay; i++) frag.appendChild(buildCell(new Date(year, month, i - firstDay + 1), true));
+  for (let d = 1; d <= lastDate; d++) {
+    const date = new Date(year, month, d);
+    const isTd = year === today.getFullYear() && month === today.getMonth() && d === today.getDate();
+    frag.appendChild(buildCell(date, false, isTd));
   }
+  const rem = (7 - (firstDay + lastDate) % 7) % 7;
+  for (let i = 1; i <= rem; i++) frag.appendChild(buildCell(new Date(year, month + 1, i), true));
 
-  // ── Destinations datalist ─────────────────────────────────────
-  function populateDestList() {
-    const dl = document.getElementById("destList");
-    dl.innerHTML = destinations.map(d => `<option value="${d}">`).join("");
-  }
+  const grid = document.getElementById("calGrid");
+  grid.replaceChildren(frag);
+}
 
-  // ── Approve dropdowns ─────────────────────────────────────────
-  function populateApproveDropdowns() {
-    const vSel = document.getElementById("approveVehicle");
-    const dSel = document.getElementById("approveDriver");
-    if (vehicles.length) {
-      vSel.innerHTML = vehicles.map(v => `<option value="${v.name}||${v.plate}">${v.name}${v.plate ? ` — ${v.plate}` : ""}</option>`).join("");
-    } else { vSel.innerHTML = `<option value="">No vehicles found</option>`; }
-    if (drivers.length) {
-      dSel.innerHTML = drivers.map(d => `<option value="${d}">${d}</option>`).join("");
-    } else { dSel.innerHTML = `<option value="">No drivers found</option>`; }
-  }
+function buildCell(date, other, isToday = false) {
+  const cell = document.createElement("div");
+  cell.className = "cal-cell"
+    + (other ? " other-month" : "")
+    + (isToday ? " today" : "")
+    + (date.getDay() === 0 || date.getDay() === 6 ? " weekend" : "");
+  const iso = fmtDate(date);
 
-  // ── Reassign dropdowns ────────────────────────────────────────
-  function populateReassignDropdowns() {
-    const vSel = document.getElementById("reassignVehicle");
-    const dSel = document.getElementById("reassignDriver");
-    if (vehicles.length) {
-      vSel.innerHTML = vehicles.map((v, i) =>
-        `<option value="${v.name}||${v.plate}"${i === 0 ? " selected" : ""}>${v.name}${v.plate ? ` — ${v.plate}` : ""}${i === 0 ? " (default)" : ""}</option>`
-      ).join("");
-    } else { vSel.innerHTML = `<option value="">No vehicles found</option>`; }
-    if (drivers.length) {
-      dSel.innerHTML = drivers.map((d, i) =>
-        `<option value="${d}"${i === 0 ? " selected" : ""}>${d}${i === 0 ? " (default)" : ""}</option>`
-      ).join("");
-    } else { dSel.innerHTML = `<option value="">No drivers found</option>`; }
-  }
+  const dn = document.createElement("div");
+  dn.className = "day-num" + (isToday ? " is-today" : "");
+  dn.textContent = date.getDate();
+  cell.appendChild(dn);
 
-  // ── Badges ───────────────────────────────────────────────────
-  function updateBadges() {
-    const today = fmtDate(new Date());
-    document.getElementById("badge-calendar").textContent = allSchedules.length;
-    document.getElementById("badge-today").textContent    = allSchedules.filter(s => s.date === today).length;
-    const todayD = new Date(); todayD.setHours(0,0,0,0);
-    document.getElementById("badge-upcoming").textContent = allSchedules.filter(s => parseDate(s.date) > todayD).length;
-    document.getElementById("badge-pending").textContent  = pendingList.length;
-  }
-
-  // ── Calendar ─────────────────────────────────────────────────
-  function renderCalendar() {
-    const year = currentDate.getFullYear(), month = currentDate.getMonth();
-    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-    document.getElementById("calTitle").textContent = `${monthNames[month]} ${year}`;
-
-    const grid = document.getElementById("calGrid");
-    grid.innerHTML = "";
-    ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].forEach(d => {
-      const h = document.createElement("div");
-      h.className = "cal-dow"; h.textContent = d; grid.appendChild(h);
+  const items = getItemsForDate(iso);
+  if (items.length) {
+    cell.classList.add("has-items");
+    cell.dataset.day = iso;
+    const wrap = document.createElement("div");
+    wrap.className = "cal-items";
+    items.slice(0, 4).forEach(item => {
+      const el = document.createElement("div");
+      const isDean = item.source === "Dean Sched";
+      const st = (item.status || "").toLowerCase().replace(/\s+/g, "");
+      el.className = `cal-item ${isDean ? "type-dean" : (st === "approved" ? "type-res-ok" : "type-res-pb")}`;
+      el.dataset.itemKey = item.__key;
+      const t = (item.startTime || "").replace(/\s/g, "");
+      el.innerHTML = `<span style="font-size:9px;opacity:.8">${esc(t)}</span> ${esc((item.destination || "—").slice(0, 16))}`;
+      wrap.appendChild(el);
     });
-
-    const firstDay = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month+1, 0).getDate();
-    const today    = new Date();
-
-    for (let i = 0; i < firstDay; i++) grid.appendChild(buildCell(new Date(year, month, i - firstDay + 1), true));
-    for (let d = 1; d <= lastDate; d++) {
-      const date = new Date(year, month, d);
-      const isTd = year === today.getFullYear() && month === today.getMonth() && d === today.getDate();
-      grid.appendChild(buildCell(date, false, isTd));
+    if (items.length > 4) {
+      const more = document.createElement("div");
+      more.className = "cal-more";
+      more.dataset.day = iso;
+      more.textContent = `+${items.length - 4} more`;
+      wrap.appendChild(more);
     }
-    const rem = (7 - (firstDay + lastDate) % 7) % 7;
-    for (let i = 1; i <= rem; i++) grid.appendChild(buildCell(new Date(year, month+1, i), true));
+    cell.appendChild(wrap);
   }
+  return cell;
+}
 
-  function buildCell(date, other, isToday = false) {
-    const cell = document.createElement("div");
-    cell.className = "cal-cell" + (other?" other-month":"") + (isToday?" today":"") + (date.getDay()===0||date.getDay()===6?" weekend":"");
-    const iso = fmtDate(date);
+function getItemsForDate(iso) {
+  const list = scheduleIndex.get(iso);
+  if (!list) return [];
+  return activeSource === "all" ? list : list.filter(s => s.source === activeSource);
+}
 
-    const dn = document.createElement("div");
-    dn.className = "cell-day-num"; // reusing day-num style
-    dn.style.cssText = "font-size:12px;font-weight:700;color:var(--gray-600);background:var(--gray-100);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:4px;flex-shrink:0;";
-    if (isToday) dn.style.cssText += "background:var(--green);color:#fff;";
-    dn.textContent = date.getDate();
-    cell.appendChild(dn);
+// ── Today / Upcoming ─────────────────────────────────────────
+function renderToday() {
+  const items = (scheduleIndex.get(fmtDate(new Date())) || []);
+  const el = document.getElementById("todayList");
+  el.innerHTML = "";
+  if (!items.length) { el.innerHTML = `<div class="empty-state">No trips scheduled for today.</div>`; return; }
+  renderGroups(el, items);
+}
 
-    const items = getItemsForDate(iso);
-    if (items.length) {
-      cell.classList.add("has-items");
-      cell.addEventListener("click", () => openDayModal(date, items));
-      const wrap = document.createElement("div");
-      wrap.className = "cal-items";
-      items.slice(0, 4).forEach(item => {
-        const el = document.createElement("div");
-        const isDean = item.source === "Dean Sched";
-        const st     = (item.status || "").toLowerCase().replace(/\s+/g,"");
-        el.className = `cal-item ${isDean ? "type-dean" : (st === "approved" ? "type-res-ok" : "type-res-pb")}`;
-        const t = item.startTime || "";
-        el.innerHTML = `<span style="font-size:9px;opacity:.8">${t.replace(/\s/g,"")}</span> ${(item.destination || "—").slice(0,16)}`;
-        el.addEventListener("click", ev => { ev.stopPropagation(); openItemModal(item); });
-        wrap.appendChild(el);
-      });
-      if (items.length > 4) {
-        const more = document.createElement("div");
-        more.className = "cal-more";
-        more.textContent = `+${items.length - 4} more`;
-        more.addEventListener("click", ev => { ev.stopPropagation(); openDayModal(date, items); });
-        wrap.appendChild(more);
-      }
-      cell.appendChild(wrap);
-    }
-    return cell;
+function renderUpcoming() {
+  const today = fmtDate(new Date());
+  const items = allSchedules
+    .filter(s => s.__iso > today)
+    .sort((a, b) => a.__iso < b.__iso ? -1 : a.__iso > b.__iso ? 1 : toMin(a.startTime) - toMin(b.startTime));
+  const el = document.getElementById("upcomingList");
+  el.innerHTML = "";
+  if (!items.length) { el.innerHTML = `<div class="empty-state">No upcoming trips found.</div>`; return; }
+  renderGroups(el, items, true);
+}
+
+function renderGroups(container, items, showDate = false) {
+  const dean = items.filter(i => i.source === "Dean Sched");
+  const res  = items.filter(i => i.source === "Reservations");
+  const frag = document.createDocumentFragment();
+  if (dean.length) {
+    frag.appendChild(sectionLabel("fa-user-tie", `Dean Schedules (${dean.length})`));
+    dean.forEach(i => frag.appendChild(buildItemCard(i, showDate)));
   }
-
-  function getItemsForDate(iso) {
-    return allSchedules
-      .filter(s => s.date === iso && (activeSource === "all" || s.source === activeSource))
-      .sort((a,b) => toMin(a.startTime) - toMin(b.startTime));
+  if (res.length) {
+    frag.appendChild(sectionLabel("fa-calendar-check", `Reservations (${res.length})`));
+    res.forEach(i => frag.appendChild(buildItemCard(i, showDate)));
   }
+  container.appendChild(frag);
+}
 
-  // ── Today / Upcoming views ───────────────────────────────────
-  function renderToday() {
-    const today = fmtDate(new Date());
-    const items = allSchedules.filter(s => s.date === today).sort((a,b) => toMin(a.startTime) - toMin(b.startTime));
-    const el = document.getElementById("todayList");
-    el.innerHTML = "";
-    if (!items.length) { el.innerHTML = `<div class="empty-state">No trips scheduled for today.</div>`; return; }
-    renderGroups(el, items);
-  }
-
-  function renderUpcoming() {
-    const todayD = new Date(); todayD.setHours(0,0,0,0);
-    const items = allSchedules.filter(s => parseDate(s.date) > todayD).sort((a,b) => {
-      if (a.date < b.date) return -1; if (a.date > b.date) return 1;
-      return toMin(a.startTime) - toMin(b.startTime);
-    });
-    const el = document.getElementById("upcomingList");
-    el.innerHTML = "";
-    if (!items.length) { el.innerHTML = `<div class="empty-state">No upcoming trips found.</div>`; return; }
-    renderGroups(el, items, true);
-  }
-
-  function renderGroups(container, items, showDate = false) {
-    const dean = items.filter(i => i.source === "Dean Sched");
-    const res  = items.filter(i => i.source === "Reservations");
-    if (dean.length) {
-      container.appendChild(sectionLabel("fa-user-tie", `Dean Schedules (${dean.length})`));
-      dean.forEach(i => container.appendChild(buildItemCard(i, showDate)));
-    }
-    if (res.length) {
-      container.appendChild(sectionLabel("fa-calendar-check", `Reservations (${res.length})`));
-      res.forEach(i => container.appendChild(buildItemCard(i, showDate)));
-    }
-  }
-
-  // ── Pending table ────────────────────────────────────────────
-  function renderPending() {
-    const el = document.getElementById("pendingContainer");
-    if (!pendingList.length) { el.innerHTML = `<div class="empty-state">No pending reservations. 🎉</div>`; return; }
-    let html = `<div class="table-wrap"><table class="data-table"><thead><tr>
-      <th>Code</th><th>Date</th><th>Time</th><th>Destination</th>
-      <th>Main Requestor</th><th>Email</th><th>Passengers</th><th>Purpose</th><th>Action</th>
-    </tr></thead><tbody>`;
-    pendingList.forEach(r => {
-      const pax = r.passengerCount > 1 ? `${r.passengerCount} passengers` : (r.passengers || "1");
-      html += `<tr>
-        <td><strong>${r.reservationCode || r.reservation_code || ""}</strong></td>
-        <td style="white-space:nowrap">${displayDate(r.date)}</td>
-        <td style="white-space:nowrap">${r.startTime || r.start_time || ""} – ${r.endTime || r.end_time || ""}</td>
-        <td>${r.destination || ""}</td>
-        <td>${r.mainRequestor || r.main_requestor || ""}<br><small style="color:var(--gray-400)">${r.mainEmail || r.main_email || ""}</small></td>
-        <td style="font-size:12px;">${r.mainEmail || r.main_email || ""}</td>
-        <td>${pax}</td>
-        <td>${r.purpose || ""}</td>
-        <td>
-          <select class="action-select" onchange="handleTableAction('${r.reservationCode || r.reservation_code || ""}', this.value, this)">
-            <option value="">— Action —</option>
-            <option value="approve">Approve</option>
-            <option value="reassign">Reschedule/Reassign</option>
-            <option value="disapprove">Disapprove</option>
-            <option value="cancel">Cancel</option>
-            <option value="delete">Delete</option>
-          </select>
-        </td>
-      </tr>`;
-    });
-    html += `</tbody></table></div>`;
-    el.innerHTML = html;
-  }
-
-  function handleTableAction(code, action, sel) {
-    if (!action) return;
-    sel.value = "";
-    if (action === "approve")       doApprove(code);
-    else if (action === "reassign") openReassignModal(code);
-    else openReason({ code, actionType: action });
-  }
-
-  // ── Item card builder ────────────────────────────────────────
-  function buildItemCard(item, showDate = false) {
-    const isDean  = item.source === "Dean Sched";
-    const status  = (item.status || "").toLowerCase().replace(/\s+/g,"");
-    const card    = document.createElement("div");
-    card.className = "item-card";
-
-    const start = item.startTime || item.start_time || "";
-    const end   = item.endTime   || item.end_time   || "";
-
-    // Action HTML
-    let actionHtml = "";
-    if (isDean) {
-      actionHtml = `<div class="action-row">
-        <select class="action-select" onchange="handleDeanAction(${item.rowIndex}, this.value, '${item.status || "Scheduled"}', this)">
-          <option value="">— Status —</option>
-          ${item.status !== "Scheduled"     ? `<option value="Scheduled">Mark Scheduled</option>` : ""}
-          ${item.status !== "Pencil Booked" ? `<option value="Pencil Booked">Mark Pencil Booked</option>` : ""}
-          ${item.status !== "Cancelled"     ? `<option value="cancel-dean">Cancel</option>` : ""}
+// ── Pending table ────────────────────────────────────────────
+function renderPending() {
+  const el = document.getElementById("pendingContainer");
+  if (!pendingList.length) { el.innerHTML = `<div class="empty-state">No pending reservations. 🎉</div>`; return; }
+  let html = `<div class="table-wrap"><table class="data-table"><thead><tr>
+    <th>Code</th><th>Date</th><th>Time</th><th>Destination</th>
+    <th>Main Requestor</th><th>Email</th><th>Passengers</th><th>Purpose</th><th>Action</th>
+  </tr></thead><tbody>`;
+  pendingList.forEach(r => {
+    const code = r.reservationCode || "";
+    const pax  = r.passengerCount > 1 ? `${r.passengerCount} passengers` : (r.passengers || "1");
+    html += `<tr>
+      <td><strong>${esc(code)}</strong></td>
+      <td style="white-space:nowrap">${esc(displayDate(r.date))}</td>
+      <td style="white-space:nowrap">${esc(r.startTime)} – ${esc(r.endTime)}</td>
+      <td>${esc(r.destination)}</td>
+      <td>${esc(r.mainRequestor)}<br><small style="color:var(--gray-400)">${esc(r.mainEmail)}</small></td>
+      <td style="font-size:12px;">${esc(r.mainEmail)}</td>
+      <td>${esc(pax)}</td>
+      <td>${esc(r.purpose)}</td>
+      <td>
+        <select class="action-select" data-act="res" data-code="${esc(code)}">
+          <option value="">— Action —</option>
+          <option value="approve">Approve</option>
+          <option value="reassign">Reschedule/Reassign</option>
+          <option value="disapprove">Disapprove</option>
+          <option value="cancel">Cancel</option>
+          <option value="delete">Delete</option>
         </select>
-        <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" onclick="confirmDeleteDean(${item.rowIndex})">
-          <i class="fas fa-trash"></i>
-        </button>
-      </div>`;
-    } else {
-      const code = item.reservationCode || item.reservation_code || "";
-      if (status === "pencilbooked") {
-        actionHtml = `<div class="action-row">
-          <select class="action-select" onchange="handleResAction('${code}', this.value, this)">
-            <option value="">— Action —</option>
-            <option value="approve">Approve</option>
-            <option value="reassign">Reschedule/Reassign</option>
-            <option value="disapprove">Disapprove</option>
-            <option value="cancel">Cancel</option>
-          </select>
-          <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" onclick="confirmDeleteRes('${code}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>`;
-      } else if (status === "approved") {
-        actionHtml = `<div class="action-row">
-          <button class="btn btn-purple" style="font-size:12px;padding:6px 10px;" onclick="openReassignModal('${code}')">
-            <i class="fas fa-exchange-alt"></i> Reschedule/Reassign
-          </button>
-          <button class="btn btn-amber" style="font-size:12px;padding:6px 10px;" onclick="openReason({code:'${code}', actionType:'cancel'})">
-            <i class="fas fa-ban"></i> Cancel
-          </button>
-          <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" onclick="confirmDeleteRes('${code}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>`;
-      }
-    }
+      </td>
+    </tr>`;
+  });
+  el.innerHTML = html + `</tbody></table></div>`;
+}
 
-    // Passenger display
-    let passengerHtml = "";
-    if (item.allPassengers && item.allPassengers.length > 0) {
-      if (item.allPassengers.length === 1) {
-        const p = item.allPassengers[0];
-        passengerHtml = `<span class="detail-label">Passenger</span>
-          <span class="detail-value">${p.name || ""}${p.email ? ` <small style="color:var(--gray-400)">(${p.email})</small>` : ""}</span>`;
-      } else {
-        const uid = "pl-" + Math.random().toString(36).slice(2);
-        const rows = item.allPassengers.map((p,i) => `
-          <div class="passenger-item">
-            <div><span class="passenger-name">${i+1}. ${p.name || "—"}</span></div>
-            <div class="passenger-email">${p.email || ""}</div>
-          </div>`).join("");
-        passengerHtml = `<span class="detail-label">Passengers</span>
-          <span class="detail-value">
-            ${item.passengerCount} passengers
-            <span class="toggle-passengers" onclick="togglePax('${uid}')">▸ Show list</span>
-            <div id="${uid}" class="passenger-list" style="display:none">${rows}</div>
-          </span>`;
-      }
-    }
+// ── Item card builder ────────────────────────────────────────
+// All actions are now data-attributes handled by delegated listeners.
+// v1 built inline onclick="..." strings containing sheet values, which
+// broke on any apostrophe and was an injection vector.
+function buildItemCard(item, showDate = false) {
+  const isDean = item.source === "Dean Sched";
+  const status = (item.status || "").toLowerCase().replace(/\s+/g, "");
+  const card = document.createElement("div");
+  card.className = "item-card";
+  const start = item.startTime || "";
+  const end   = item.endTime || "";
+  const code  = item.reservationCode || "";
 
-    card.innerHTML = `
-      <div class="item-card-header">
-        <span class="item-time">${displayDate(item.date)} &nbsp;·&nbsp; ${start} – ${end}</span>
-        <span class="source-badge ${isDean ? "dean" : "reservation"}">${item.source}</span>
-        <span class="status-badge status-${status}">${item.status || "Scheduled"}</span>
+  let actionHtml = "";
+  if (isDean) {
+    actionHtml = `<div class="action-row">
+      <select class="action-select" data-act="dean" data-row="${esc(item.rowIndex)}">
+        <option value="">— Status —</option>
+        ${item.status !== "Scheduled"     ? `<option value="Scheduled">Mark Scheduled</option>` : ""}
+        ${item.status !== "Pencil Booked" ? `<option value="Pencil Booked">Mark Pencil Booked</option>` : ""}
+        ${item.status !== "Cancelled"     ? `<option value="cancel-dean">Cancel</option>` : ""}
+      </select>
+      <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" data-btn="delete-dean" data-row="${esc(item.rowIndex)}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>`;
+  } else if (status === "pencilbooked") {
+    actionHtml = `<div class="action-row">
+      <select class="action-select" data-act="res" data-code="${esc(code)}">
+        <option value="">— Action —</option>
+        <option value="approve">Approve</option>
+        <option value="reassign">Reschedule/Reassign</option>
+        <option value="disapprove">Disapprove</option>
+        <option value="cancel">Cancel</option>
+      </select>
+      <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" data-btn="delete-res" data-code="${esc(code)}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>`;
+  } else if (status === "approved") {
+    actionHtml = `<div class="action-row">
+      <button class="btn btn-purple" style="font-size:12px;padding:6px 10px;" data-btn="reassign" data-code="${esc(code)}">
+        <i class="fas fa-exchange-alt"></i> Reschedule/Reassign
+      </button>
+      <button class="btn btn-amber" style="font-size:12px;padding:6px 10px;" data-btn="cancel-res" data-code="${esc(code)}">
+        <i class="fas fa-ban"></i> Cancel
+      </button>
+      <button class="btn btn-red" style="padding:6px 10px;font-size:12px;" data-btn="delete-res" data-code="${esc(code)}">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>`;
+  }
+
+  let passengerHtml = "";
+  const pax = item.allPassengers || [];
+  if (pax.length === 1) {
+    passengerHtml = `<span class="detail-label">Passenger</span>
+      <span class="detail-value">${esc(pax[0].name)}${pax[0].email ? ` <small style="color:var(--gray-400)">(${esc(pax[0].email)})</small>` : ""}</span>`;
+  } else if (pax.length > 1) {
+    const uid = "pl-" + Math.random().toString(36).slice(2);
+    const rows = pax.map((p, i) => `
+      <div class="passenger-item">
+        <div><span class="passenger-name">${i + 1}. ${esc(p.name || "—")}</span></div>
+        <div class="passenger-email">${esc(p.email)}</div>
+      </div>`).join("");
+    passengerHtml = `<span class="detail-label">Passengers</span>
+      <span class="detail-value">
+        ${esc(item.passengerCount)} passengers
+        <span class="toggle-passengers" data-btn="toggle-pax" data-target="${uid}">▸ Show list</span>
+        <div id="${uid}" class="passenger-list" style="display:none">${rows}</div>
+      </span>`;
+  }
+
+  card.innerHTML = `
+    <div class="item-card-header">
+      <span class="item-time">${esc(displayDate(item.date))} &nbsp;·&nbsp; ${esc(start)} – ${esc(end)}</span>
+      <span class="source-badge ${isDean ? "dean" : "reservation"}">${esc(item.source)}</span>
+      <span class="status-badge status-${esc(status)}">${esc(item.status || "Scheduled")}</span>
+    </div>
+    <div class="item-card-body">
+      <div class="detail-grid">
+        <span class="detail-label">Destination</span><span class="detail-value">${esc(item.destination)}</span>
+        <span class="detail-label">Purpose</span><span class="detail-value">${esc(item.purpose)}</span>
+        ${passengerHtml}
+        ${isDean
+          ? `${item.email   ? `<span class="detail-label">Email</span><span class="detail-value">${esc(item.email)}</span>` : ""}
+             ${item.remarks ? `<span class="detail-label">Remarks</span><span class="detail-value">${esc(item.remarks)}</span>` : ""}`
+          : `${item.mainRequestor ? `<span class="detail-label">Main Requestor</span><span class="detail-value">${esc(item.mainRequestor)}</span>` : ""}
+             ${item.mainEmail     ? `<span class="detail-label">Main Email</span><span class="detail-value">${esc(item.mainEmail)}</span>` : ""}
+             ${code               ? `<span class="detail-label">Code</span><span class="detail-value"><strong>${esc(code)}</strong></span>` : ""}
+             ${item.vehicle       ? `<span class="detail-label">Vehicle</span><span class="detail-value">${esc(item.vehicle)}</span>` : ""}
+             ${item.driver        ? `<span class="detail-label">Driver</span><span class="detail-value">${esc(item.driver)}</span>` : ""}`
+        }
       </div>
-      <div class="item-card-body">
-        <div class="detail-grid">
-          <span class="detail-label">Destination</span><span class="detail-value">${item.destination || ""}</span>
-          <span class="detail-label">Purpose</span><span class="detail-value">${item.purpose || ""}</span>
-          ${passengerHtml}
-          ${isDean
-            ? `${item.email ? `<span class="detail-label">Email</span><span class="detail-value">${item.email}</span>` : ""}
-               ${item.remarks ? `<span class="detail-label">Remarks</span><span class="detail-value">${item.remarks}</span>` : ""}`
-            : `${item.mainRequestor ? `<span class="detail-label">Main Requestor</span><span class="detail-value">${item.mainRequestor}</span>` : ""}
-               ${item.mainEmail ? `<span class="detail-label">Main Email</span><span class="detail-value">${item.mainEmail}</span>` : ""}
-               ${(item.reservationCode||item.reservation_code) ? `<span class="detail-label">Code</span><span class="detail-value"><strong>${item.reservationCode||item.reservation_code}</strong></span>` : ""}`
-          }
-        </div>
-        ${actionHtml}
-      </div>`;
-    return card;
-  }
+      ${actionHtml}
+    </div>`;
+  return card;
+}
 
-  function togglePax(uid) {
-    const el  = document.getElementById(uid);
-    const tog = el.previousElementSibling;
-    if (el.style.display === "none") {
-      el.style.display = "block"; tog.textContent = "▾ Hide list";
-    } else {
-      el.style.display = "none"; tog.textContent = "▸ Show list";
+function togglePax(uid) {
+  const el = document.getElementById(uid);
+  if (!el) return;
+  const tog = el.previousElementSibling;
+  const open = el.style.display === "none";
+  el.style.display = open ? "block" : "none";
+  if (tog) tog.textContent = open ? "▾ Hide list" : "▸ Show list";
+}
+
+// ── Day modal ────────────────────────────────────────────────
+function openDayModal(date, items) {
+  document.getElementById("dayModalTitle").textContent =
+    date.toLocaleDateString("en-PH", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  renderGroups(body, items);
+  document.getElementById("dayModal").classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+
+function openItemModal(item) {
+  document.getElementById("dayModalTitle").textContent = item.source + " Details";
+  const body = document.getElementById("dayModalBody");
+  body.innerHTML = "";
+  body.appendChild(buildItemCard(item));
+  document.getElementById("dayModal").classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeDayModal() {
+  document.getElementById("dayModal").classList.remove("is-open");
+  document.body.style.overflow = "";
+}
+
+// ============================================================
+// Writes
+// ============================================================
+// Every write asks the server to hand back the refreshed dataset in
+// the same response (returnData). v1 did the write, then fired four
+// more requests to reload — that second wave is where a lot of the
+// "action worked but the page 404'd" reports came from.
+
+async function doWrite(payload, msgs) {
+  setLoading(true);
+  toast(msgs.pending, "info");
+  try {
+    const r = await apiPost(Object.assign({ returnData: true }, payload));
+    if (r && r.success) {
+      if (r.data) applyData(r.data);
+      else await loadAll({ fresh: true });
+      closeDayModal();
+      hideBanner();
+      toast(typeof msgs.ok === "function" ? msgs.ok(r) : msgs.ok, "success");
+      setStatus(`Updated ${new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}`);
+      return true;
     }
+    toast("Failed: " + (r && (r.message || r.error) || "unknown error"), "error");
+    return false;
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+    showBanner(`That action may not have gone through: ${e.message}. Refresh to check before retrying.`, "warn");
+    return false;
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Dean actions ─────────────────────────────────────────────
+function handleDeanAction(rowIndex, value) {
+  if (value === "cancel-dean") { openReason({ rowIndex, actionType: "cancel-dean" }); return; }
+  if (!confirm(`Change status to "${value}"?`)) return;
+  doUpdateDean(rowIndex, value);
+}
+
+function doUpdateDean(rowIndex, status, reason = "") {
+  return doWrite(
+    { action: "updateDeanStatus", rowIndex, status, reason },
+    { pending: "Updating…", ok: "Status updated!" }
+  );
+}
+
+function confirmDeleteDean(rowIndex) {
+  if (!confirm("Delete this Dean schedule? This cannot be undone.")) return;
+  doWrite({ action: "deleteDeanSchedule", rowIndex }, { pending: "Deleting…", ok: "Deleted!" });
+}
+
+// ── Reservation actions ──────────────────────────────────────
+function handleResAction(code, action) {
+  if (action === "approve")       doApprove(code);
+  else if (action === "reassign") openReassignModal(code);
+  else openReason({ code, actionType: action });
+}
+
+function parseVehicleString(str) {
+  if (!str) return null;
+  const m = String(str).trim().match(/^(.*?)\s*\(([^)]+)\)$/);
+  return m ? { name: m[1].trim(), plate: m[2].trim() } : { name: String(str).trim(), plate: "" };
+}
+
+function selectByVehicleName(sel, name) {
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value.split("||")[0] === name) { sel.selectedIndex = i; return true; }
+  }
+  if (sel.options.length) sel.selectedIndex = 0;
+  return false;
+}
+function selectByValue(sel, val) {
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === val) { sel.selectedIndex = i; return true; }
+  }
+  if (sel.options.length) sel.selectedIndex = 0;
+  return false;
+}
+
+function summaryHtml(code, item, color) {
+  if (!item) return `<strong style="color:${color};">${esc(code)}</strong>`;
+  return `<strong style="color:${color};">${esc(code)}</strong><br>
+    <span style="color:var(--gray-600);">
+      ${esc(item.dateDisplay || displayDate(item.date))} &nbsp;·&nbsp;
+      ${esc(item.startTime)} – ${esc(item.endTime)}<br>
+      Destination: <strong>${esc(item.destination)}</strong><br>
+      Requestor: <strong>${esc(item.mainRequestor)}</strong>
+    </span>`;
+}
+
+// ── Approve confirm modal ────────────────────────────────────
+function doApprove(code) {
+  const item = findByCode(code);
+  const requestedVehicle = item ? parseVehicleString(item.vehicle) : null;
+  const originalVehicle  = requestedVehicle || vehicles[0] || { name: "", plate: "" };
+  const originalDriver   = (item && item.driver) ? item.driver : (drivers[0] || "");
+  approveCtx = { code, originalVehicle, originalDriver };
+
+  document.getElementById("approveConfirmSummary").innerHTML = summaryHtml(code, item, "var(--green)");
+
+  const vSel = document.getElementById("approveVehicle");
+  const dSel = document.getElementById("approveDriver");
+  selectByVehicleName(vSel, originalVehicle.name);
+  selectByValue(dSel, originalDriver);
+
+  document.getElementById("approveReason").value = "";
+
+  const checkChanged = () => {
+    const vName = vSel.value.split("||")[0];
+    const changed = (vName !== originalVehicle.name) || (dSel.value !== originalDriver);
+    document.getElementById("approveReasonWrap").style.display  = changed ? "block" : "none";
+    document.getElementById("approveDefaultNote").style.display = changed ? "none" : "block";
+    if (!changed) document.getElementById("approveReason").value = "";
+  };
+  vSel.onchange = checkChanged;
+  dSel.onchange = checkChanged;
+  checkChanged();
+
+  document.getElementById("approveConfirmModal").classList.add("is-open");
+}
+
+function closeApproveConfirm() {
+  document.getElementById("approveConfirmModal").classList.remove("is-open");
+  document.getElementById("approveReasonWrap").style.display = "none";
+  document.getElementById("approveReason").value = "";
+  approveCtx = null;
+}
+
+async function submitApproveConfirm() {
+  if (!approveCtx) return;
+  const { code, originalVehicle, originalDriver } = approveCtx;
+  const vSel = document.getElementById("approveVehicle");
+  const dSel = document.getElementById("approveDriver");
+  if (!vSel.value) { toast("Please select a vehicle.", "error"); return; }
+  if (!dSel.value) { toast("Please select a driver.", "error"); return; }
+
+  const [vehicleName, vehiclePlate] = vSel.value.split("||");
+  const driverName = dSel.value;
+  const isReassignment = (vehicleName !== originalVehicle.name) || (driverName !== originalDriver);
+  const reason = document.getElementById("approveReason").value.trim();
+
+  if (isReassignment && !reason) {
+    toast("Please provide a reason for reassigning the vehicle or driver.", "error");
+    document.getElementById("approveReason").focus();
+    return;
   }
 
-  // ── Day modal ─────────────────────────────────────────────────
-  function openDayModal(date, items) {
-    document.getElementById("dayModalTitle").textContent =
-      date.toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
-    const body = document.getElementById("dayModalBody");
-    body.innerHTML = "";
-    const dean = items.filter(i => i.source === "Dean Sched");
-    const res  = items.filter(i => i.source === "Reservations");
-    if (dean.length) { body.appendChild(sectionLabel("fa-user-tie", `Dean Schedules (${dean.length})`)); dean.forEach(i => body.appendChild(buildItemCard(i))); }
-    if (res.length)  { body.appendChild(sectionLabel("fa-calendar-check", `Reservations (${res.length})`)); res.forEach(i => body.appendChild(buildItemCard(i))); }
-    document.getElementById("dayModal").classList.add("is-open");
-    document.body.style.overflow = "hidden";
+  closeApproveConfirm();
+  await doWrite({
+    action: "updateReservationStatus",
+    reservationCode: code,
+    newStatus: "Approved",
+    reason: null,
+    vehicleName, vehiclePlate, driverName,
+    supporting: isReassignment ? reason : "",
+    isReassignment
+  }, {
+    pending: isReassignment ? `Approving & reassigning ${code}…` : `Approving ${code}…`,
+    ok: r => `${code} ${isReassignment ? "approved & reassigned" : "approved"}${r.emailSent ? " · Email sent" : ""}`
+  });
+}
+
+// ── Reassign modal ───────────────────────────────────────────
+function openReassignModal(code) {
+  reassignCtx = { code };
+  const item = findByCode(code);
+  document.getElementById("reassignSummary").innerHTML = summaryHtml(code, item, "var(--purple)");
+
+  const current = item ? parseVehicleString(item.vehicle) : null;
+  selectByVehicleName(document.getElementById("reassignVehicle"), current ? current.name : "");
+  selectByValue(document.getElementById("reassignDriver"), item ? (item.driver || "") : "");
+
+  document.getElementById("reassignReason").value = "";
+  document.getElementById("reassignDate").value  = item ? fmtDate(parseDate(item.date)) : "";
+  document.getElementById("reassignStart").value = item ? to24Hour(item.startTime) : "";
+  document.getElementById("reassignEnd").value   = item ? to24Hour(item.endTime)   : "";
+  document.getElementById("reassignModal").classList.add("is-open");
+}
+
+function closeReassignModal() {
+  document.getElementById("reassignModal").classList.remove("is-open");
+  document.getElementById("reassignReason").value = "";
+  reassignCtx = null;
+}
+
+async function confirmReassign() {
+  if (!reassignCtx) return;
+  const vSel   = document.getElementById("reassignVehicle");
+  const dSel   = document.getElementById("reassignDriver");
+  const date   = document.getElementById("reassignDate").value;
+  const start  = document.getElementById("reassignStart").value;
+  const end    = document.getElementById("reassignEnd").value;
+  const reason = document.getElementById("reassignReason").value.trim();
+
+  if (!vSel.value)     { toast("Please select a vehicle.", "error"); return; }
+  if (!dSel.value)     { toast("Please select a driver.", "error"); return; }
+  if (!date)           { toast("Please select a date.", "error"); return; }
+  if (!start || !end)  { toast("Please set both start and end time.", "error"); return; }
+  if (!reason)         { toast("Please provide a reason for the reschedule/reassignment.", "error");
+                         document.getElementById("reassignReason").focus(); return; }
+
+  const [vehicleName, vehiclePlate] = vSel.value.split("||");
+  const driverName = dSel.value;
+  const code = reassignCtx.code;
+  closeReassignModal();
+
+  await doWrite({
+    action: "updateReservationStatus",
+    reservationCode: code,
+    newStatus: "Approved",
+    reason: null,
+    vehicleName, vehiclePlate, driverName,
+    supporting: reason,
+    newDate: date, newStartTime: start, newEndTime: end,
+    isReassignment: true
+  }, {
+    pending: `Updating ${code}…`,
+    ok: r => `${code} updated · ${vehicleName} · ${driverName}${r.emailSent ? " · Email sent" : ""}`
+  });
+}
+
+function doUpdateRes(code, status, reason = null) {
+  if (!confirm(`${status} reservation ${code}?`)) return Promise.resolve(false);
+  return doWrite(
+    { action: "updateReservationStatus", reservationCode: code, newStatus: status, reason },
+    { pending: `Updating ${code}…`, ok: r => `${code} → ${status}${r.emailSent ? " · Email sent" : ""}` }
+  );
+}
+
+function confirmDeleteRes(code) {
+  if (!confirm(`Delete reservation ${code}? This cannot be undone.`)) return;
+  doWrite({ action: "deleteReservation", reservationCode: code },
+          { pending: `Deleting ${code}…`, ok: `${code} deleted` });
+}
+
+// ── Reason modal ─────────────────────────────────────────────
+function openReason(ctx) {
+  pendingAction = ctx;
+  const map = {
+    disapprove:    ["Disapprove reservation", "Provide a reason for disapproving:"],
+    cancel:        ["Cancel reservation", "Provide a reason for cancelling:"],
+    "cancel-dean": ["Cancel Dean schedule", "Provide a reason for cancelling:"],
+    delete:        ["Delete reservation", "Provide a reason for deleting (permanent):"]
+  };
+  const [title, desc] = map[ctx.actionType] || ["Reason", "Provide a reason:"];
+  document.getElementById("reasonTitle").textContent = title;
+  document.getElementById("reasonDesc").textContent  = desc;
+  document.getElementById("reasonText").value = "";
+  document.getElementById("submitReason").style.background =
+    (ctx.actionType === "disapprove" || ctx.actionType === "delete") ? "var(--red)" : "var(--amber)";
+  document.getElementById("reasonModal").classList.add("is-open");
+}
+
+function closeReason() {
+  document.getElementById("reasonModal").classList.remove("is-open");
+  pendingAction = null;
+}
+
+async function submitReason() {
+  const reason = document.getElementById("reasonText").value.trim();
+  if (!reason) { toast("Please provide a reason.", "error"); return; }
+  const ctx = pendingAction;
+  closeReason();
+  if (!ctx) return;
+  if (ctx.actionType === "disapprove")        await doUpdateRes(ctx.code, "Disapproved", reason);
+  else if (ctx.actionType === "cancel")       await doUpdateRes(ctx.code, "Cancelled", reason);
+  else if (ctx.actionType === "cancel-dean")  await doUpdateDean(ctx.rowIndex, "Cancelled", reason);
+  else if (ctx.actionType === "delete") {
+    await doWrite({ action: "deleteReservation", reservationCode: ctx.code },
+                  { pending: `Deleting ${ctx.code}…`, ok: `${ctx.code} deleted` });
   }
+}
 
-  function openItemModal(item) {
-    document.getElementById("dayModalTitle").textContent = item.source + " Details";
-    const body = document.getElementById("dayModalBody");
-    body.innerHTML = "";
-    body.appendChild(buildItemCard(item));
-    document.getElementById("dayModal").classList.add("is-open");
-    document.body.style.overflow = "hidden";
+// ── Add Dean Schedule ────────────────────────────────────────
+function openAddDean() {
+  document.getElementById("deanForm").reset();
+  document.getElementById("deanFormError").style.display = "none";
+  document.getElementById("deanDate").min = fmtDate(new Date());
+  document.getElementById("deanDate").value = fmtDate(new Date());
+  document.getElementById("addDeanModal").classList.add("is-open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeAddDean() {
+  document.getElementById("addDeanModal").classList.remove("is-open");
+  document.body.style.overflow = "";
+}
+
+async function submitDean() {
+  const err = document.getElementById("deanFormError");
+  err.style.display = "none";
+  const entry = {
+    date:        document.getElementById("deanDate").value,
+    startTime:   document.getElementById("deanStart").value.trim(),
+    endTime:     document.getElementById("deanEnd").value.trim(),
+    destination: document.getElementById("deanDest").value.trim(),
+    purpose:     document.getElementById("deanPurpose").value.trim(),
+    passengers:  document.getElementById("deanPassengers").value.trim(),
+    email:       document.getElementById("deanEmail").value.trim(),
+    remarks:     document.getElementById("deanRemarks").value.trim(),
+    status:      document.getElementById("deanStatus").value
+  };
+  if (!entry.date || !entry.startTime || !entry.endTime || !entry.destination || !entry.purpose) {
+    err.textContent = "Please fill in all required fields.";
+    err.style.display = "block";
+    return;
   }
+  const ok = await doWrite({ action: "addDeanSchedule", entry },
+                           { pending: "Adding…", ok: "Schedule added!" });
+  if (ok) closeAddDean();
+}
 
-  function closeDayModal() {
-    document.getElementById("dayModal").classList.remove("is-open");
-    document.body.style.overflow = "";
-  }
+// ── Utilities ────────────────────────────────────────────────
+function fmtDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+function parseDate(str) {
+  if (!str) return new Date(0);
+  const m = String(str).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], 12);
+  const d = new Date(str);
+  return isNaN(d) ? new Date(0) : d;
+}
+function displayDate(str) {
+  const d = parseDate(str);
+  return isNaN(d) ? str : d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+function toMin(t) {
+  if (!t) return 0;
+  const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return 0;
+  let h = +m[1];
+  const mins = +m[2];
+  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+  return h * 60 + mins;
+}
+function to24Hour(t) {
+  if (!t) return "";
+  const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!m) return "";
+  let h = +m[1];
+  const mins = m[2];
+  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+  return `${String(h).padStart(2, "0")}:${mins}`;
+}
+function sectionLabel(icon, text) {
+  const el = document.createElement("div");
+  el.className = "section-label";
+  el.innerHTML = `<i class="fas ${icon}"></i> ${esc(text)}`;
+  return el;
+}
+function toast(msg, type = "success") {
+  const stack = document.getElementById("toastStack");
+  const el = document.createElement("div");
+  el.className = `toast toast-${type}`;
+  const icon = type === "success" ? "fa-check-circle" : type === "error" ? "fa-exclamation-circle" : "fa-info-circle";
+  el.innerHTML = `<i class="fas ${icon}"></i> ${esc(msg)}`;
+  stack.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
+  setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 300); }, 3500);
+}
 
-  // ── Dean actions ──────────────────────────────────────────────
-  function handleDeanAction(rowIndex, value, currentStatus, sel) {
-    if (!value) return;
-    sel.value = "";
-    if (value === "cancel-dean") openReason({ rowIndex, actionType: "cancel-dean" });
-    else {
-      if (!confirm(`Change status to "${value}"?`)) return;
-      doUpdateDean(rowIndex, value);
-    }
-  }
+// ============================================================
+// Event listeners — delegated
+// ============================================================
+function setupListeners() {
+  document.getElementById("prevMonth").addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); });
+  document.getElementById("nextMonth").addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); });
+  document.getElementById("todayBtn").addEventListener("click", () => { currentDate = new Date(); renderCalendar(); });
+  document.getElementById("refreshBtn").addEventListener("click", () => loadAll({ fresh: true }));
+  document.getElementById("connRetry").addEventListener("click", () => loadAll({ fresh: true }));
 
-  async function doUpdateDean(rowIndex, status, reason = "") {
-    toast(`Updating row ${rowIndex}…`, "info");
-    try {
-      const r = await apiPost({ action: "updateDeanStatus", rowIndex, status, reason });
-      if (r.success) { toast("Status updated!", "success"); closeDayModal(); await loadAll(); }
-      else toast("Failed: " + (r.error || r.message), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
+  document.getElementById("addDeanBtn").addEventListener("click", openAddDean);
+  document.getElementById("closeAddDean").addEventListener("click", closeAddDean);
+  document.getElementById("cancelDean").addEventListener("click", closeAddDean);
+  document.getElementById("submitDean").addEventListener("click", submitDean);
 
-  async function confirmDeleteDean(rowIndex) {
-    if (!confirm("Delete this Dean schedule? This cannot be undone.")) return;
-    toast("Deleting…", "info");
-    try {
-      const r = await apiPost({ action: "deleteDeanSchedule", rowIndex });
-      if (r.success) { toast("Deleted!", "success"); closeDayModal(); await loadAll(); }
-      else toast("Failed: " + (r.error || r.message), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
+  document.getElementById("cancelApproveConfirm").addEventListener("click", closeApproveConfirm);
+  document.getElementById("submitApproveConfirm").addEventListener("click", submitApproveConfirm);
+  document.getElementById("cancelReassign").addEventListener("click", closeReassignModal);
+  document.getElementById("confirmReassign").addEventListener("click", confirmReassign);
+  document.getElementById("closeDayModal").addEventListener("click", closeDayModal);
+  document.getElementById("cancelReason").addEventListener("click", closeReason);
+  document.getElementById("submitReason").addEventListener("click", submitReason);
 
-  // ── Reservation actions ───────────────────────────────────────
-  function handleResAction(code, action, sel) {
-    if (!action) return;
-    sel.value = "";
-    if (action === "approve")       doApprove(code);
-    else if (action === "reassign") openReassignModal(code);
-    else openReason({ code, actionType: action });
-  }
-
-  // ── Approve confirm modal ─────────────────────────────────────
-  let approveCtx = null; // { code, originalVehicle, originalDriver }
-
-  // Parses "Toyota Hi-Ace (ABC-123)" or "Toyota Hi-Ace" back into { name, plate }
-  function parseVehicleString(str) {
-    if (!str) return null;
-    const m = String(str).trim().match(/^(.*?)\s*\(([^)]+)\)$/);
-    if (m) return { name: m[1].trim(), plate: m[2].trim() };
-    return { name: str.trim(), plate: "" };
-  }
-
-  function doApprove(code) {
-    const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
-               || pendingList.find(s => (s.reservationCode || s.reservation_code) === code);
-
-    // Original = whatever the requestor asked for (vehicle) or is currently assigned (driver);
-    // falls back to the standard default if nothing was specified.
-    const requestedVehicle = item ? parseVehicleString(item.vehicle) : null;
-    const originalVehicle  = requestedVehicle || vehicles[0] || { name: "", plate: "" };
-    const originalDriver   = (item && item.driver) ? item.driver : (drivers[0] || "");
-
-    approveCtx = { code, originalVehicle, originalDriver };
-
-    const el = document.getElementById("approveConfirmSummary");
+  // Calendar clicks (cells, items, "+n more") — one listener, not 200.
+  document.getElementById("calGrid").addEventListener("click", e => {
+    const item = e.target.closest("[data-item-key]");
     if (item) {
-      el.innerHTML = `
-        <strong style="color:var(--green);">${code}</strong><br>
-        <span style="color:var(--gray-600);">
-          ${item.dateDisplay || displayDate(item.date)} &nbsp;·&nbsp;
-          ${item.startTime || item.start_time || ""} – ${item.endTime || item.end_time || ""}<br>
-          Destination: <strong>${item.destination || ""}</strong><br>
-          Requestor: <strong>${item.mainRequestor || item.main_requestor || ""}</strong>
-        </span>`;
-    } else {
-      el.innerHTML = `<strong style="color:var(--green);">${code}</strong>`;
-    }
-
-    const vSel = document.getElementById("approveVehicle");
-    const dSel = document.getElementById("approveDriver");
-
-    // Pre-select the vehicle dropdown to match the requested vehicle
-    let matchedVehicle = false;
-    for (let i = 0; i < vSel.options.length; i++) {
-      const [optName] = vSel.options[i].value.split("||");
-      if (optName === originalVehicle.name) { vSel.selectedIndex = i; matchedVehicle = true; break; }
-    }
-    if (!matchedVehicle && vSel.options.length) vSel.selectedIndex = 0;
-
-    // Pre-select the driver dropdown to match the current/default driver
-    let matchedDriver = false;
-    for (let i = 0; i < dSel.options.length; i++) {
-      if (dSel.options[i].value === originalDriver) { dSel.selectedIndex = i; matchedDriver = true; break; }
-    }
-    if (!matchedDriver && dSel.options.length) dSel.selectedIndex = 0;
-
-    document.getElementById("approveReasonWrap").style.display = "none";
-    document.getElementById("approveReason").value = "";
-
-    // Show the reason field the moment either dropdown differs from the original
-    const checkChanged = () => {
-      const [vName] = vSel.value.split("||");
-      const changed = (vName !== originalVehicle.name) || (dSel.value !== originalDriver);
-      document.getElementById("approveReasonWrap").style.display = changed ? "block" : "none";
-      document.getElementById("approveDefaultNote").style.display = changed ? "none" : "block";
-      if (!changed) document.getElementById("approveReason").value = "";
-    };
-    vSel.onchange = checkChanged;
-    dSel.onchange = checkChanged;
-    checkChanged();
-
-    document.getElementById("approveConfirmModal").classList.add("is-open");
-  }
-
-  function closeApproveConfirm() {
-    document.getElementById("approveConfirmModal").classList.remove("is-open");
-    document.getElementById("approveReasonWrap").style.display = "none";
-    document.getElementById("approveReason").value = "";
-    approveCtx = null;
-  }
-
-  async function submitApproveConfirm() {
-    if (!approveCtx) return;
-    const code = approveCtx.code;
-    const vSel = document.getElementById("approveVehicle");
-    const dSel = document.getElementById("approveDriver");
-
-    if (!vSel.value) { toast("Please select a vehicle.", "error"); return; }
-    if (!dSel.value) { toast("Please select a driver.", "error"); return; }
-
-    const [vehicleName, vehiclePlate] = vSel.value.split("||");
-    const driverName = dSel.value;
-
-    const isReassignment = (vehicleName !== approveCtx.originalVehicle.name) || (driverName !== approveCtx.originalDriver);
-    const reason = document.getElementById("approveReason").value.trim();
-
-    if (isReassignment && !reason) {
-      toast("Please provide a reason for reassigning the vehicle or driver.", "error");
-      document.getElementById("approveReason").focus();
+      const found = itemsByKey.get(item.dataset.itemKey);
+      if (found) openItemModal(found);
       return;
     }
+    const more = e.target.closest(".cal-more");
+    if (more) { openDayModal(parseDate(more.dataset.day), getItemsForDate(more.dataset.day)); return; }
+    const cell = e.target.closest(".cal-cell.has-items");
+    if (cell) openDayModal(parseDate(cell.dataset.day), getItemsForDate(cell.dataset.day));
+  });
 
-    closeApproveConfirm();
-    toast(isReassignment ? `Approving & reassigning ${code}…` : `Approving ${code}…`, "info");
-    try {
-      const r = await apiPost({
-        action: "updateReservationStatus",
-        reservationCode: code,
-        newStatus: "Approved",
-        reason: null,
-        vehicleName, vehiclePlate, driverName,
-        supporting: isReassignment ? reason : "",
-        isReassignment
-      });
-      if (r.success) {
-        toast(`${code} ${isReassignment ? "approved & reassigned" : "approved"}` + (r.emailSent ? ` · Email sent` : ""), "success");
-        closeDayModal(); await loadAll();
-      } else toast("Failed: " + (r.message || r.error), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
+  // All action buttons anywhere on the page.
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("[data-btn]");
+    if (!btn) return;
+    const kind = btn.dataset.btn;
+    if      (kind === "delete-dean") confirmDeleteDean(Number(btn.dataset.row));
+    else if (kind === "delete-res")  confirmDeleteRes(btn.dataset.code);
+    else if (kind === "reassign")    openReassignModal(btn.dataset.code);
+    else if (kind === "cancel-res")  openReason({ code: btn.dataset.code, actionType: "cancel" });
+    else if (kind === "toggle-pax")  togglePax(btn.dataset.target);
+  });
 
-  // ── Reassign modal ────────────────────────────────────────────
-  function openReassignModal(code) {
-    reassignCtx = { code };
-    const item = allSchedules.find(s => (s.reservationCode || s.reservation_code) === code)
-               || pendingList.find(s => (s.reservationCode || s.reservation_code) === code);
-    const el = document.getElementById("reassignSummary");
-    if (item) {
-      el.innerHTML = `
-        <strong style="color:var(--purple);">${code}</strong><br>
-        <span style="color:var(--gray-600);">
-          ${item.dateDisplay || displayDate(item.date)} &nbsp;·&nbsp;
-          ${item.startTime || item.start_time || ""} – ${item.endTime || item.end_time || ""}<br>
-          Destination: <strong>${item.destination || ""}</strong><br>
-          Requestor: <strong>${item.mainRequestor || item.main_requestor || ""}</strong>
-        </span>`;
-    } else {
-      el.innerHTML = `<strong style="color:var(--purple);">${code}</strong>`;
-    }
+  // All action dropdowns anywhere on the page.
+  document.addEventListener("change", e => {
+    const sel = e.target.closest("select[data-act]");
+    if (!sel || !sel.value) return;
+    const value = sel.value;
+    sel.value = "";
+    if (sel.dataset.act === "res")  handleResAction(sel.dataset.code, value);
+    if (sel.dataset.act === "dean") handleDeanAction(Number(sel.dataset.row), value);
+  });
 
-    const vSel = document.getElementById("reassignVehicle");
-    const dSel = document.getElementById("reassignDriver");
-
-    // Pre-select whatever's currently on the reservation — the requestor's
-    // choice if still pending, or the confirmed assignment if already
-    // approved — instead of always defaulting to the first option.
-    const current = item ? parseVehicleString(item.vehicle) : null;
-    let matchedVehicle = false;
-    if (current && current.name) {
-      for (let i = 0; i < vSel.options.length; i++) {
-        const [optName] = vSel.options[i].value.split("||");
-        if (optName === current.name) { vSel.selectedIndex = i; matchedVehicle = true; break; }
-      }
-    }
-    if (!matchedVehicle && vSel.options.length) vSel.selectedIndex = 0;
-
-    const currentDriver = item ? (item.driver || "") : "";
-    let matchedDriver = false;
-    if (currentDriver) {
-      for (let i = 0; i < dSel.options.length; i++) {
-        if (dSel.options[i].value === currentDriver) { dSel.selectedIndex = i; matchedDriver = true; break; }
-      }
-    }
-    if (!matchedDriver && dSel.options.length) dSel.selectedIndex = 0;
-
-    document.getElementById("reassignReason").value = "";
-
-    // Pre-fill date/time with the reservation's current schedule
-    document.getElementById("reassignDate").value  = item ? fmtDate(parseDate(item.date)) : "";
-    document.getElementById("reassignStart").value = item ? to24Hour(item.startTime || item.start_time || "") : "";
-    document.getElementById("reassignEnd").value    = item ? to24Hour(item.endTime   || item.end_time   || "") : "";
-
-    document.getElementById("reassignModal").classList.add("is-open");
-  }
-
-  function closeReassignModal() {
-    document.getElementById("reassignModal").classList.remove("is-open");
-    document.getElementById("reassignReason").value = "";
-    reassignCtx = null;
-  }
-
-  async function confirmReassign() {
-    if (!reassignCtx) return;
-    const vSel   = document.getElementById("reassignVehicle");
-    const dSel   = document.getElementById("reassignDriver");
-    const date   = document.getElementById("reassignDate").value;
-    const start  = document.getElementById("reassignStart").value;
-    const end    = document.getElementById("reassignEnd").value;
-    const reason = document.getElementById("reassignReason").value.trim();
-    if (!vSel.value) { toast("Please select a vehicle.", "error"); return; }
-    if (!dSel.value) { toast("Please select a driver.", "error"); return; }
-    if (!date)       { toast("Please select a date.", "error"); return; }
-    if (!start || !end) { toast("Please set both start and end time.", "error"); return; }
-    if (!reason)     { toast("Please provide a reason for the reschedule/reassignment.", "error"); document.getElementById("reassignReason").focus(); return; }
-    const [vehicleName, vehiclePlate] = vSel.value.split("||");
-    const driverName = dSel.value;
-    const code = reassignCtx.code;
-    closeReassignModal();
-    toast(`Updating ${code}…`, "info");
-    try {
-      const r = await apiPost({
-        action: "updateReservationStatus",
-        reservationCode: code,
-        newStatus: "Approved",
-        reason: null,
-        vehicleName, vehiclePlate, driverName,
-        supporting: reason,
-        newDate: date,
-        newStartTime: start,
-        newEndTime: end,
-        isReassignment: true
-      });
-      if (r.success) {
-        toast(`${code} updated · ${vehicleName} · ${driverName}` + (r.emailSent ? ` · Email sent` : ""), "success");
-        closeDayModal(); await loadAll();
-      } else toast("Failed: " + (r.message || r.error), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
-
-  async function doUpdateRes(code, status, reason = null) {
-    if (!confirm(`${status} reservation ${code}?`)) return;
-    toast(`Updating ${code}…`, "info");
-    try {
-      const r = await apiPost({ action: "updateReservationStatus", reservationCode: code, newStatus: status, reason });
-      if (r.success) {
-        toast(`${code} → ${status}` + (r.emailSent ? ` · Email sent` : ""), "success");
-        closeDayModal(); await loadAll();
-      } else toast("Failed: " + (r.message || r.error), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
-
-  async function confirmDeleteRes(code) {
-    if (!confirm(`Delete reservation ${code}? This cannot be undone.`)) return;
-    toast(`Deleting ${code}…`, "info");
-    try {
-      const r = await apiPost({ action: "deleteReservation", reservationCode: code });
-      if (r.success) { toast(`${code} deleted`, "success"); closeDayModal(); await loadAll(); }
-      else toast("Failed: " + (r.message || r.error), "error");
-    } catch(e) { toast("Error: " + e.message, "error"); }
-  }
-
-  // ── Reason modal ──────────────────────────────────────────────
-  function openReason(ctx) {
-    pendingAction = ctx;
-    const at = ctx.actionType;
-    const map = {
-      disapprove:   ["Disapprove reservation", "Provide a reason for disapproving:"],
-      cancel:       ["Cancel reservation", "Provide a reason for cancelling:"],
-      "cancel-dean":["Cancel Dean schedule", "Provide a reason for cancelling:"],
-      delete:       ["Delete reservation", "Provide a reason for deleting (permanent):"]
-    };
-    const [title, desc] = map[at] || ["Reason", "Provide a reason:"];
-    document.getElementById("reasonTitle").textContent = title;
-    document.getElementById("reasonDesc").textContent  = desc;
-    document.getElementById("reasonText").value = "";
-    document.getElementById("submitReason").style.background = (at === "disapprove" || at === "delete") ? "var(--red)" : "var(--amber)";
-    document.getElementById("reasonModal").classList.add("is-open");
-  }
-
-  function closeReason() {
-    document.getElementById("reasonModal").classList.remove("is-open");
-    pendingAction = null;
-  }
-
-  async function submitReason() {
-    const reason = document.getElementById("reasonText").value.trim();
-    if (!reason) { toast("Please provide a reason.", "error"); return; }
-    const { code, rowIndex, actionType } = pendingAction;
-    closeReason();
-    if (actionType === "disapprove")   await doUpdateRes(code, "Disapproved", reason);
-    else if (actionType === "cancel")  await doUpdateRes(code, "Cancelled", reason);
-    else if (actionType === "cancel-dean") await doUpdateDean(rowIndex, "Cancelled", reason);
-    else if (actionType === "delete") {
-      toast(`Deleting ${code}…`, "info");
-      try {
-        const r = await apiPost({ action: "deleteReservation", reservationCode: code });
-        if (r.success) { toast(`${code} deleted`, "success"); closeDayModal(); await loadAll(); }
-        else toast("Failed: " + (r.message || r.error), "error");
-      } catch(e) { toast("Error: " + e.message, "error"); }
-    }
-  }
-
-  // ── Add Dean Schedule ────────────────────────────────────────
-  function openAddDean() {
-    document.getElementById("deanForm").reset();
-    document.getElementById("deanFormError").style.display = "none";
-    document.getElementById("deanDate").min = fmtDate(new Date());
-    document.getElementById("deanDate").value = fmtDate(new Date());
-    document.getElementById("addDeanModal").classList.add("is-open");
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeAddDean() {
-    document.getElementById("addDeanModal").classList.remove("is-open");
-    document.body.style.overflow = "";
-  }
-
-  async function submitDean() {
-    const err = document.getElementById("deanFormError");
-    err.style.display = "none";
-    const entry = {
-      date:       document.getElementById("deanDate").value,
-      startTime:  document.getElementById("deanStart").value.trim(),
-      endTime:    document.getElementById("deanEnd").value.trim(),
-      destination:document.getElementById("deanDest").value.trim(),
-      purpose:    document.getElementById("deanPurpose").value.trim(),
-      passengers: document.getElementById("deanPassengers").value.trim(),
-      email:      document.getElementById("deanEmail").value.trim(),
-      remarks:    document.getElementById("deanRemarks").value.trim(),
-      status:     document.getElementById("deanStatus").value
-    };
-    if (!entry.date || !entry.startTime || !entry.endTime || !entry.destination || !entry.purpose) {
-      err.textContent = "Please fill in all required fields.";
-      err.style.display = "block"; return;
-    }
-    try {
-      const r = await apiPost({ action: "addDeanSchedule", entry });
-      if (r.success) { toast("Schedule added!", "success"); closeAddDean(); await loadAll(); }
-      else { err.textContent = r.error || "Failed to add."; err.style.display = "block"; }
-    } catch(e) { err.textContent = "Error: " + e.message; err.style.display = "block"; }
-  }
-
-  // ── Utilities ────────────────────────────────────────────────
-  function fmtDate(date) {
-    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
-  }
-  function parseDate(str) {
-    if (!str) return new Date(0);
-    const m = String(str).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (m) return new Date(+m[1], +m[2]-1, +m[3], 12);
-    const d = new Date(str); return isNaN(d) ? new Date(0) : d;
-  }
-  function displayDate(str) {
-    const d = parseDate(str);
-    return isNaN(d) ? str : d.toLocaleDateString("en-PH", { year:"numeric", month:"short", day:"numeric" });
-  }
-  function toMin(t) {
-    if (!t) return 0;
-    const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!m) return 0;
-    let h = +m[1]; const mins = +m[2];
-    if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
-    if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
-    return h * 60 + mins;
-  }
-  // Convert "2:00 PM" style display time to 24hr "HH:MM" for <input type="time">
-  function to24Hour(t) {
-    if (!t) return "";
-    const m = String(t).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!m) return "";
-    let h = +m[1]; const mins = m[2];
-    if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
-    if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
-    return `${String(h).padStart(2,"0")}:${mins}`;
-  }
-  function sectionLabel(icon, text) {
-    const el = document.createElement("div");
-    el.className = "section-label";
-    el.innerHTML = `<i class="fas ${icon}"></i> ${text}`;
-    return el;
-  }
-  function toast(msg, type = "success") {
-    const stack = document.getElementById("toastStack");
-    const el = document.createElement("div");
-    el.className = `toast toast-${type}`;
-    const icon = type === "success" ? "fa-check-circle" : type === "error" ? "fa-exclamation-circle" : "fa-info-circle";
-    el.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
-    stack.appendChild(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("show")));
-    setTimeout(() => { el.classList.remove("show"); setTimeout(() => el.remove(), 300); }, 3500);
-  }
-
-  // ── Event listeners ──────────────────────────────────────────
-  function setupListeners() {
-    document.getElementById("prevMonth").addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth()-1); renderCalendar(); });
-    document.getElementById("nextMonth").addEventListener("click", () => { currentDate.setMonth(currentDate.getMonth()+1); renderCalendar(); });
-    document.getElementById("todayBtn").addEventListener("click",  () => { currentDate = new Date(); renderCalendar(); });
-    document.getElementById("refreshBtn").addEventListener("click", () => { loadAll(); toast("Refreshing…","info"); });
-    document.getElementById("addDeanBtn").addEventListener("click", openAddDean);
-    document.getElementById("closeAddDean").addEventListener("click", closeAddDean);
-    document.getElementById("cancelDean").addEventListener("click", closeAddDean);
-    document.getElementById("submitDean").addEventListener("click", submitDean);
-    document.getElementById("cancelApproveConfirm").addEventListener("click", closeApproveConfirm);
-    document.getElementById("submitApproveConfirm").addEventListener("click", submitApproveConfirm);
-    document.getElementById("cancelReassign").addEventListener("click", closeReassignModal);
-    document.getElementById("confirmReassign").addEventListener("click", confirmReassign);
-    document.getElementById("closeDayModal").addEventListener("click", closeDayModal);
-    document.getElementById("cancelReason").addEventListener("click", closeReason);
-    document.getElementById("submitReason").addEventListener("click", submitReason);
-
-    document.querySelectorAll(".source-chip").forEach(chip => {
-      chip.addEventListener("click", () => {
-        document.querySelectorAll(".source-chip").forEach(c => c.classList.remove("active"));
-        chip.classList.add("active");
-        activeSource = chip.dataset.source;
-        renderCalendar();
-      });
+  document.querySelectorAll(".source-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".source-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      activeSource = chip.dataset.source;
+      renderCalendar();
     });
+  });
 
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-        tab.classList.add("active");
-        document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
-        if (tab.dataset.tab === "today")    renderToday();
-        if (tab.dataset.tab === "upcoming") renderUpcoming();
-        if (tab.dataset.tab === "pending")  renderPending();
-      });
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
     });
+  });
 
-    window.addEventListener("click", e => {
-      if (e.target === document.getElementById("dayModal")) closeDayModal();
-      if (e.target === document.getElementById("reasonModal")) closeReason();
-      if (e.target === document.getElementById("addDeanModal")) closeAddDean();
-      if (e.target === document.getElementById("approveConfirmModal")) closeApproveConfirm();
-      if (e.target === document.getElementById("reassignModal")) closeReassignModal();
-    });
-    document.addEventListener("keydown", e => {
-      if (e.key === "Escape") { closeDayModal(); closeReason(); closeAddDean(); closeApproveConfirm(); closeReassignModal(); }
-    });
-  }
+  window.addEventListener("click", e => {
+    if (e.target === document.getElementById("dayModal"))            closeDayModal();
+    if (e.target === document.getElementById("reasonModal"))         closeReason();
+    if (e.target === document.getElementById("addDeanModal"))        closeAddDean();
+    if (e.target === document.getElementById("approveConfirmModal")) closeApproveConfirm();
+    if (e.target === document.getElementById("reassignModal"))       closeReassignModal();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      closeDayModal(); closeReason(); closeAddDean();
+      closeApproveConfirm(); closeReassignModal();
+    }
+  });
+
+  // Quietly refresh when the admin comes back to the tab after a
+  // while, so a long-open window isn't showing stale approvals.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (!lastLoadedAt || (Date.now() - lastLoadedAt.getTime()) > 120000) loadAll();
+  });
+}
 </script>
 </body>
 </html>
