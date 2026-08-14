@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CHE Vehicle Reservation Admin</title>
+  <!-- Relative, not "/favicon.png". A leading slash means the domain root,
+       which on GitHub Pages project sites (user.github.io/repo/) is not
+       your repo — so the tab icon silently 404s. -->
   <link rel="icon" type="image/png" href="favicon.png">
 
   <!-- PERF: warm up the TLS handshake to Apps Script before the first fetch.
@@ -488,15 +491,18 @@
 <nav class="navbar">
   <a href="https://bit.ly/che-dghub" target="_blank" rel="noopener noreferrer" class="navbar-brand">
     <!-- ============================================================
-         LOGO — ONE-TIME PASTE
-         Open your OLD admin file, find the <img ... class="navbar-logo">
-         tag, copy the whole value of its src="..." attribute (the long
-         "data:image/png;base64,iVBORw0KGgo..." string) and paste it over
-         the src value below, replacing the placeholder SVG.
-         Until you do, the green CHE monogram below stands in — nothing
-         else on the page depends on it.
+         LOGO
+         Loads favicon.png from this same folder. The path is RELATIVE on
+         purpose: "/favicon.png" resolves to the domain root, which on a
+         GitHub Pages project site (user.github.io/repo/) is a different
+         place than your repo — that is why it wasn't showing.
+         If favicon.png sits somewhere else, change the src (e.g.
+         "assets/favicon.png"). If it fails to load for any reason, the
+         onerror below swaps in a plain CHE monogram so the navbar never
+         shows a broken-image icon.
          ============================================================ -->
-    <img src="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%2064%2064'%3E%3Crect%20width%3D'64'%20height%3D'64'%20rx%3D'12'%20fill%3D'%23ffffff'%2F%3E%3Ctext%20x%3D'32'%20y%3D'41'%20font-family%3D'Lato%2CArial%2Csans-serif'%20font-size%3D'22'%20font-weight%3D'700'%20fill%3D'%2300563F'%20text-anchor%3D'middle'%3ECHE%3C%2Ftext%3E%3C%2Fsvg%3E"
+    <img src="favicon.png"
+         onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2212%22%20fill%3D%22%23ffffff%22/%3E%3Ctext%20x%3D%2232%22%20y%3D%2241%22%20font-family%3D%22Lato,Arial,sans-serif%22%20font-size%3D%2222%22%20font-weight%3D%22700%22%20fill%3D%22%2300563F%22%20text-anchor%3D%22middle%22%3ECHE%3C/text%3E%3C/svg%3E'"
          alt="CHE Logo" class="navbar-logo">
     <span class="navbar-site-name">CHE DigiHub</span>
   </a>
@@ -756,7 +762,7 @@
 // ============================================================
 // PASTE YOUR ADMIN GAS DEPLOYMENT URL HERE
 // ============================================================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbysjaCu6ia8TOuIvXfhbNO1VDhvXha9hOUw7KWguPb3hJGhcUYzvfXHEImRuPuGtNzk/exec"
+const GAS_URL = "https://script.google.com/macros/s/AKfycbysjaCu6ia8TOuIvXfhbNO1VDhvXha9hOUw7KWguPb3hJGhcUYzvfXHEImRuPuGtNzk/exec";
 
 // How long to wait on a single request before giving up on it (ms).
 const REQUEST_TIMEOUT = 30000;
@@ -796,6 +802,24 @@ async function rawFetch(url, opts) {
   }
 }
 
+// Explains a blocked fetch in terms of the thing most likely to be true,
+// based on how this page itself was loaded.
+function blockedRequestReason() {
+  if (location.protocol === "file:") {
+    return "This page was opened directly from your computer (file://). " +
+           "Apps Script rejects requests from local files — serve the page over http, " +
+           "or open it from your GitHub Pages URL.";
+  }
+  if (location.protocol === "http:" &&
+      location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+    return "This page is served over http:// but the script is https:// — " +
+           "the browser is blocking it as mixed content. Load this page over https.";
+  }
+  return "The browser blocked the request before it reached Apps Script. " +
+         "Usually the deployment's access is not set to “Anyone”, " +
+         "or an extension/network is blocking script.google.com.";
+}
+
 async function apiCall(url, opts, label) {
   let lastErr = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -828,8 +852,11 @@ async function apiCall(url, opts, label) {
         lastErr = new Error("Request timed out");
         continue;
       }
-      // A network-level TypeError is transient too (flaky wifi, CORS blip).
-      if (e instanceof TypeError) { lastErr = new Error("Network error"); continue; }
+      // fetch() throws TypeError when the browser refuses to make or read
+      // the request at all. That is NOT the same as the server failing, and
+      // "Network error" on its own sends people hunting for a wifi problem
+      // that isn't there — so say what actually causes it.
+      if (e instanceof TypeError) { lastErr = new Error(blockedRequestReason()); continue; }
       throw e;
     }
   }
